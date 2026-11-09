@@ -1,2 +1,82 @@
 # MarkdownQwenAnonymizer
-调用本地AI完成文本法律合规性脱敏（隐藏人名、公司名、数字）
+
+调用本地 `llama-server` / Qwen GGUF，对 Markdown 法律文档进行可逆脱敏。该仓库是**独立项目**，仅参考 `AnydocVisionExportMarkdown` 的模块分层与双轨 CI 报告方式；不包含 AnyDoc、JXA 或 WASM 源码。
+
+## 架构
+
+```text
+src/
+├── core/
+│   ├── types.ts       # 抽取数据结构与接口
+│   ├── grammar.ts     # GBNF 强控 JSON
+│   ├── store.ts       # 跨 Chunk 全局去重 + 正则兜底
+│   ├── chunks.ts      # 20,000 字符切片 + 50 字符重叠
+│   ├── mapping.ts     # PER/ORG/NUM 双向映射、最长匹配
+│   └── processor.ts   # 递归处理与同级新目录输出
+├── ports/file-port.ts
+├── adapters/
+│   ├── node-fs.ts     # Node 文件系统
+│   └── llama-server.ts# CoT 探测、GBNF、HTTP 400 重试
+└── hosts/node.ts      # CLI 入口
+tests/
+├── fixtures/          # 虚构的 Markdown 测试材料
+├── huggleface_downloader.py
+├── unit.test.ts
+├── run-live.ts
+└── summarize-ci.cjs
+```
+
+## 下载模型与启动服务
+
+安装 Node.js 24+，在仓库根部运行：
+
+```bash
+npm ci
+python -m pip install 'huggingface_hub>=1,<2'
+python tests/huggleface_downloader.py
+```
+
+模型保存为 `tests/qwen2.5-0.5b-instruct-q4_0.gguf`。
+
+macOS 安装并运行 `llama-server`（CPU 示例）：
+
+```bash
+brew install llama.cpp
+llama-server -m tests/qwen2.5-0.5b-instruct-q4_0.gguf -ngl 0 -c 8192 -b 512 -ub 128 -t 4 --host 127.0.0.1 --port 9931
+```
+
+Windows 已安装 `llama-server` 时：
+
+```powershell
+llama-server -m ".\tests\qwen2.5-0.5b-instruct-q4_0.gguf" -ngl 0 -c 8192 -b 512 -ub 128 -t 4 --host 127.0.0.1 --port 9931
+```
+
+这是纯文本 GGUF，**不要将相同 GGUF 传给 `--mmproj`**；该参数是多模态投影文件参数。GPU 支持时可根据显存调整 `-ngl`。
+
+另开终端脱敏一个文件夹：
+
+```bash
+npm run anonymize -- /absolute/path/to/cases
+```
+
+工具递归处理 `.md`、`.markdown`，在输入目录同级产生 `cases_脱敏后`，再次运行产生 `cases_脱敏后 2` 等以避免覆盖。所有文件共用一套实体编号，`id_cards` 和 `codes` 最终合并到 `NUM`。保留源目录层级，默认不跟随符号链接。
+
+### 隐私与错误处理
+
+输出目录根部 `.anonymize_map.json` **以明文保存全部实体原值**，仅用于受控恢复；切勿公开或提交至 Git。生成时尝试采用权限 `0600`。调用服务器失败、JSON 格式错误时直接停止，不静默生成未经完整审查的文档。小模型可能漏识别，发布之前仍需人工复查。
+
+## 双轨测试
+
+```bash
+npm run typecheck
+npm run test:unit
+npm run test:live   # 需要本地 9931 端口的 llama-server
+```
+
+`.github/workflows/test.yml` 在 `macos-latest` 上执行静态检查、单元测试、官方 GGUF 下载、真实 llama-server 与端到端测试。每次运行生成 `test_report.md` 并上传日志，无论成功失败都会记录状态；功能分支 push 会自动写回报告，忽略仅报告变更防止 CI 循环；任意必要步骤失败则整个 job 失败。
+
+### 模型权重为何不直接纳入 Git
+
+官方 Qwen Q4_0 GGUF 约 429 MB，超过 GitHub 普通 Git 文件的 100 MB 限制。此仓库提交官方下载器并将模型自动下载到 `tests/`，**并未把真实 429 MB 二进制提交到 Git**。如果必须版本控制该文件，则需要配置 Git LFS、上传真实 LFS 对象并确保有足够额度；单独提交 LFS 指针不能代替实际权重。
+
+测试 Markdown 使用虚构身份及号码，供功能验证，不能代表隐私合规认证。
