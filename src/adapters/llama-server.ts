@@ -62,12 +62,12 @@ export class LlamaServerClient implements EntityExtractor {
       "【文本内容】\n"+chunkText
     ].join("\n");
     const base={
-      messages:[{role:"user",content:prompt}],max_tokens:512,
+      messages:[{role:"user",content:prompt}],max_tokens:192,
       temperature:0,grammar:ENTITY_GBNF_GRAMMAR,stream:false
     };
     const send=(payload:Record<string,unknown>)=>fetch(this.baseUrl+"/v1/chat/completions",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload),signal:AbortSignal.timeout(300000)
+      body:JSON.stringify(payload),signal:AbortSignal.timeout(180000)
     });
     const payload:Record<string,unknown>=isControllableCot
       ? {...base,reasoning_budget:0,chat_template_kwargs:{enable_thinking:false}}
