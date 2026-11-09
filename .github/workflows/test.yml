@@ -10,7 +10,7 @@ permissions:
   contents: write
 concurrency:
   group: markdown-qwen-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   validate:
     runs-on: macos-latest
