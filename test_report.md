@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-09T08:07:09.586Z
-- GitHub run: 42582931947
-- Commit SHA: de464aff7e821788e8ade175c11a985ebef4cfc2
+- CI 时间（UTC）: 2026-11-09T08:12:24.254Z
+- GitHub run: 42583729087
+- Commit SHA: e6556194e41e79f75bdb195e00d752b2af63ee8a
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -13,27 +13,11 @@
 | Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
 | Qwen GGUF download | **SUCCESS** | tests/output/download.log |
 | Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
-| Real Qwen GGUF integration | **FAILURE** | tests/output/live.log |
+| Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
 
 ## 失败项
 
-### Real Qwen GGUF integration
-
-~~~text
-
-> markdown-qwen-anonymizer@1.0.0 test:live
-> tsx tests/run-live.ts
-
-SyntaxError: Unterminated string in JSON at position 636 (line 5 column 535)
-    at JSON.parse (<anonymous>)
-    at parseEntities (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/src/adapters/llama-server.ts:6:29)
-    at LlamaServerClient.extractEntitiesFromChunk (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/src/adapters/llama-server.ts:79:12)
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-    at async MarkdownDirectoryAnonymizer.process (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/src/core/processor.ts:45:27)
-    at async main (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-live.ts:20:18)
-
-~~~
-
+- 无，所有必须阶段成功。
 
 ## 模型与隐私说明
 
