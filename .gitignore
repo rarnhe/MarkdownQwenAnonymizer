@@ -147,3 +147,11 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Local GGUF weight, test logs and reversible dictionaries
+tests/qwen2.5-0.5b-instruct-q4_0.gguf
+tests/.cache/
+tests/output/
+**/.anonymize_map.json
+*_脱敏后/
+*_脱敏后 [0-9]*/
