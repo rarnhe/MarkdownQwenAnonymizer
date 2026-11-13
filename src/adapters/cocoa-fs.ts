@@ -46,7 +46,8 @@ export function createCocoaFilePort():CocoaFilePort {
       const values:unknown=ObjC.unwrap(names);
       if(!Array.isArray(values))throw new Error("Unexpected NSArray from Foundation");
       return values.map(item=>{
-        const name=String(item),s=stat(folder.replace(/\/+$/,"")+"/"+name);
+        const name=typeof item==="string"?item:unwrap(item);
+        const s=stat(folder.replace(/\/+$/,"")+"/"+name);
         return {name,isFile:!!s?.isFile,isDirectory:!!s?.isDirectory};
       });
     },
