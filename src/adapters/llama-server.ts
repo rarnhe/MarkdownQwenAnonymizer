@@ -57,12 +57,12 @@ export class LlamaServerClient implements EntityExtractor {
 
   async extractEntitiesFromChunk(chunkText:string,isControllableCot:boolean):Promise<ExtractedEntities> {
     const prompt=[
-      "你是一名专业的中国法律文档隐私审查助手。请仔细阅读文本，只抽取人名、公司/机构名称、中国居民身份证号、统一社会信用代码、中国大陆手机号码。",
-      "只输出JSON，必须依次包含persons、organizations、id_cards、codes四个字符串数组，不允许解释、重复或者编造。中国大陆手机号、统一社会信用代码属于codes；中国居民身份证号属于id_cards。合同编号、文件编号、案号、账号及其他普通编号不要抽取。忽略美国社会安全号码（SSN），不要抽取；忽略所有金额及货币数值（如60000万元、3000元、人民币5000元、￥3,000），不要抽取。年份和日期（如2025年、1970年1月1日、2026.09.08）不是编号，请勿抽取。",
+      "请提取中国法律文档的人名、机构名、身份证、手机号、统一社会信用代码。忽略其他编号、金额、日期及美国SSN。",
+      "严格输出JSON，字段顺序：persons、organizations、id_cards、codes，值均为字符串数组。身份证放id_cards，手机和统一社会信用代码放codes。不要解释。",
       "【文本内容】\n"+chunkText
     ].join("\n");
     const base={
-      messages:[{role:"user",content:prompt}],max_tokens:192,
+      messages:[{role:"user",content:prompt}],max_tokens:128,
       temperature:0,grammar:ENTITY_GBNF_GRAMMAR,stream:false
     };
     const send=(payload:Record<string,unknown>)=>fetch(this.baseUrl+"/v1/chat/completions",{
