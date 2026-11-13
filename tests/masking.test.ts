@@ -28,6 +28,14 @@ test("three-character name reveals first and last; same-surname two-character na
   assert.equal(restored,source);
 });
 
+test("same-surname masks follow first mention: 贺然 -> [贺*], 贺柜 -> [贺**]",()=>{
+  const map=makeMapping(categories(["贺柜","贺然"]),new Set(),["贺然，贺柜，贺然。"]);
+  assert.equal(map.realToPlaceholder["贺然"],"[贺*]");
+  assert.equal(map.realToPlaceholder["贺柜"],"[贺**]");
+  const input="贺然与贺柜签署，贺然复核。";
+  assert.equal(restoreText(anonymizeText(input,map),map.placeholderToReal),input);
+});
+
 test("restoreText reverses longest tokens in one pass and bounds numeric masks",()=>{
   const map:Record<string,string>={
     "[腾*司]":"腾讯公司",
