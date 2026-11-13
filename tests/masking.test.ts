@@ -28,12 +28,15 @@ test("three-character name reveals first and last; same-surname two-character na
   assert.equal(restored,source);
 });
 
-test("same-surname masks follow first mention: 贺然 -> [贺*], 贺柜 -> [贺**]",()=>{
-  const map=makeMapping(categories(["贺柜","贺然"]),new Set(),["贺然，贺柜，贺然。"]);
-  assert.equal(map.realToPlaceholder["贺然"],"[贺*]");
-  assert.equal(map.realToPlaceholder["贺柜"],"[贺**]");
-  const input="贺然与贺柜签署，贺然复核。";
-  assert.equal(restoreText(anonymizeText(input,map),map.placeholderToReal),input);
+test("register persons incrementally: repeated 李明 reuses mask, 李鬼 and 李逵 add stars",()=>{
+  const source="李明、李鬼、李明、李逵、李鬼、李逵。";
+  const map=makeMapping(categories(["李逵","李明","李鬼","李明"]),new Set(),[source]);
+  assert.equal(map.realToPlaceholder["李明"],"[李*]");
+  assert.equal(map.realToPlaceholder["李鬼"],"[李**]");
+  assert.equal(map.realToPlaceholder["李逵"],"[李***]");
+  assert.deepEqual(Object.keys(map.placeholderToReal),["[李*]","[李**]","[李***]"]);
+  assert.equal(anonymizeText(source,map),"[李*]、[李**]、[李*]、[李***]、[李**]、[李***]。");
+  assert.equal(restoreText(anonymizeText(source,map),map.placeholderToReal),source);
 });
 
 test("restoreText reverses longest tokens in one pass and bounds numeric masks",()=>{
@@ -177,9 +180,9 @@ test("same-area ID and same-prefix USCC reveal only the final check character on
   const codes=["91440300MA5F6WXY12","91440300MA5F6WXY13"];
   const phones=["13485791234","13485795678"];
   const map=makeMapping(categories([],[],[...ids,...codes,...phones]));
-  assert.equal(map.realToPlaceholder[ids[0]],"[429114***********8]");
+  assert.equal(map.realToPlaceholder[ids[0]],"[429114************]");
   assert.equal(map.realToPlaceholder[ids[1]],"[429114***********6]");
-  assert.equal(map.realToPlaceholder[codes[0]],"[91440300*********2]");
+  assert.equal(map.realToPlaceholder[codes[0]],"[91440300**********]");
   assert.equal(map.realToPlaceholder[codes[1]],"[91440300*********3]");
   assert.equal(map.realToPlaceholder[phones[0]],"[1348579****]");
   assert.equal(map.realToPlaceholder[phones[1]],"[1348579*****]");

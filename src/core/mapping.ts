@@ -38,45 +38,41 @@ function chineseLabel(real:string,kind:"PER"|"ORG"):string {
   const city=kind==="ORG" && place && chars.length>=6 ? place : "";
   return "["+city+chars[0]+"*"+(chars.length===2?"":chars[chars.length-1])+"]";
 }
-/** Increase the number of stars to make collisions unique; no "-1" suffixes. */
-function addMapping(real:string,token:string,mapping:EntityMapping,used:Set<string>):void {
-  if(mapping.realToPlaceholder[real])return;
-  let unique=token;
-  if(!unique.includes("*"))throw new Error("Mask must contain a star");
-  while(used.has(unique))unique=unique.replace(/\*+/,stars=>stars+"*");
-  used.add(unique);
-  mapping.placeholderToReal[unique]=real;
-  mapping.realToPlaceholder[real]=unique;
+/** Register one real value exactly once. Never rewrite a previously assigned mask.
+ * On a collision, numeric IDs/credit codes reveal the final check character,
+ * while names and remaining collisions are distinguished by additional stars.
+ */
+function addMapping(
+  real:string,initialMask:string,mapping:EntityMapping,used:Set<string>,
+  checkDigitMask?:string
+):void {
+  if(Object.hasOwn(mapping.realToPlaceholder,real))return;
+  if(!initialMask.startsWith("[") || !initialMask.endsWith("]") || !initialMask.includes("*"))
+    throw new Error("A reversible mask must be bracketed and contain a star");
+  let mask=initialMask;
+  if(used.has(mask) && checkDigitMask)mask=checkDigitMask;
+  while(used.has(mask))mask=mask.replace(/\*+/,stars=>stars+"*");
+  used.add(mask);
+  mapping.placeholderToReal[mask]=real;
+  mapping.realToPlaceholder[real]=mask;
 }
 
-/** Allocate collision-aware masks for one numeric identifier family. */
+/** Allocate numeric masks one real value at a time in first-mention order.
+ * The first number uses a full masked suffix; only a NEW colliding value
+ * reveals the last check character. If that still collides, add more stars.
+ */
 function addMaskedNumbers(
   values:string[],kind:"ID"|"USCC"|"PHONE",mapping:EntityMapping,used:Set<string>
 ):void {
-  const unique=[...new Set(values)].filter(value=>!mapping.realToPlaceholder[value]);
   const prefixLength=kind==="ID"?6:kind==="USCC"?8:7;
-  const groups=new Map<string,string[]>();
-  for(const value of unique) {
-    const prefix=value.slice(0,prefixLength);
-    const group=groups.get(prefix) ?? [];
-    group.push(value);groups.set(prefix,group);
-  }
-  const candidates=unique.map(real=>{
+  for(const real of values) {
+    if(Object.hasOwn(mapping.realToPlaceholder,real))continue;
     const prefix=real.slice(0,prefixLength);
-    const collision=(groups.get(prefix)?.length ?? 0)>1;
-    let base:string;
-    if(kind==="ID")
-      base=prefix+"*".repeat(collision?11:12)+(collision?real.slice(-1).toUpperCase():"");
-    else if(kind==="USCC")
-      base=prefix+"*".repeat(collision?9:10)+(collision?real.slice(-1).toUpperCase():"");
-    else
-      base=prefix+"****";
-    return {real,base};
-  });
-  for(const candidate of candidates) {
-    // A second identifier with the same masked prefix and check digit gets
-    // one more '*' instead of a numeric suffix; brackets remain intact.
-    addMapping(candidate.real,"["+candidate.base+"]",mapping,used);
+    const maskedCount=real.length-prefixLength;
+    const initialMask="["+prefix+"*".repeat(maskedCount)+"]";
+    const checkDigitMask=kind==="PHONE"?undefined
+      :"["+prefix+"*".repeat(maskedCount-1)+real.slice(-1).toUpperCase()+"]";
+    addMapping(real,initialMask,mapping,used,checkDigitMask);
   }
 }
 
@@ -91,7 +87,7 @@ export function makeMapping(
     realToPlaceholder:Object.create(null)
   };
   const used=new Set(reservedTokens);
-  // The first visible mention gets the shortest mask, including 贺然 before 贺柜.
+  // The first visible mention gets the shortest available mask; duplicate originals reuse it.
   // This avoids depending on model output ordering or locale-specific sorting.
   const source=markdownDocuments.join("\n\n");
   const byAppearance=(values:string[]):string[]=> {

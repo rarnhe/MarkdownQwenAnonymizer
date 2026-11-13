@@ -39,7 +39,7 @@ test("contract attachment: star-only collisions, bracketed numeric masks and exa
       async extractEntitiesFromChunk(){
         llmCalls++;
         return {
-          persons:["李明","李鬼"],
+          persons:["李逵","李明","李鬼","李明","李逵"],
           organizations:["深圳星辰科技有限公司","星辰公司"],
           id_cards:["110101199001012345","110101199001112345"],
           codes:["13800138000","91350211M000100Y43","91350211M002100Y48","HT-2026-0001"]
@@ -51,7 +51,7 @@ test("contract attachment: star-only collisions, bracketed numeric masks and exa
     if(first.action!=="anonymized")throw new Error("Expected anonymized action");
     assert.equal(first.fileCount,1);
     assert.equal(first.chunkCount,1);
-    assert.equal(first.counts.PER,2);
+    assert.equal(first.counts.PER,3);
     assert.equal(first.counts.ORG,2);
     assert.equal(first.counts.NUM,5,"two IDs, two USCCs and one repeated phone");
     assert.equal(llmCalls,1);
@@ -60,24 +60,26 @@ test("contract attachment: star-only collisions, bracketed numeric masks and exa
     const map=JSON.parse(await fs.readFile(mapPath,"utf8")) as Record<string,string>;
     assert.equal(map["[李*]"],"李明");
     assert.equal(map["[李**]"],"李鬼");
+    assert.equal(map["[李***]"],"李逵");
     assert.equal(map["[深圳星*司]"],"深圳星辰科技有限公司");
     assert.equal(map["[星*司]"],"星辰公司");
     assert.equal(map["[1380013****]"],"13800138000");
-    assert.equal(map["[110101***********5]"],"110101199001012345");
-    assert.equal(map["[110101************5]"],"110101199001112345");
-    assert.equal(map["[91350211*********3]"],"91350211M000100Y43");
+    assert.equal(map["[110101************]"],"110101199001012345");
+    assert.equal(map["[110101***********5]"],"110101199001112345");
+    assert.equal(map["[91350211**********]"],"91350211M000100Y43");
     assert.equal(map["[91350211*********8]"],"91350211M002100Y48");
-    assert.equal(Object.keys(map).length,9);
+    assert.equal(Object.keys(map).length,10);
     assert.ok(Object.keys(map).every(token=>token.startsWith("[")&&token.endsWith("]")));
     assert.ok(Object.keys(map).every(token=>!/-\d+\]$/.test(token)),"no -1 suffix in masks");
     assert.ok(masked.includes("姓名：[李*]"));
     assert.ok(masked.includes("姓名：[李**]"));
+    assert.ok(masked.includes("姓名：[李***]"));
     assert.ok(masked.includes("机构：[深圳星*司]"));
     assert.ok(masked.includes("机构：[星*司]"));
     assert.ok(masked.includes("手机：[1380013****] 手机：[1380013****]"));
+    assert.ok(masked.includes("身份证：[110101************]"));
     assert.ok(masked.includes("身份证：[110101***********5]"));
-    assert.ok(masked.includes("身份证：[110101************5]"));
-    assert.ok(masked.includes("统一社会信用代码：[91350211*********3]"));
+    assert.ok(masked.includes("统一社会信用代码：[91350211**********]"));
     assert.ok(masked.includes("统一社会信用代码：[91350211*********8]"));
     assert.ok(masked.includes("合同编号：HT-2026-0001"));
     assert.equal(await fs.readFile(path.join(source,"unrelated.txt"),"utf8"),ordinary);
