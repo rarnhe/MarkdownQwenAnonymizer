@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T07:14:04.915Z
-- GitHub run: 43384020467
-- Commit SHA: 4ff30d957499166552e4854f6c0db3918bfe5ee9
+- CI 时间（UTC）: 2026-11-13T07:17:57.971Z
+- GitHub run: 43384428603
+- Commit SHA: ce9e40218b62058f3269e2c13472a2102afd39d2
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -22,5 +22,5 @@
 ## 模型与隐私说明
 
 - 实际 GGUF 在 CI 时下载到 tests/，不提交为普通 Git 对象。
-- 不上传 GGUF 权重或含真实值的 anonymize-map.json。
+- 不上传 GGUF 权重或含真实值的 .anonymize-map.json。
 - 真实资料发布前仍必须人工核对遗漏实体。
