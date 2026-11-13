@@ -21,7 +21,7 @@ src/
 │   └── llama-server.ts# CoT 探测、GBNF、HTTP 400 重试
 └── hosts/node.ts      # CLI 入口
 tests/
-├── fixtures/          # 虚构的 Markdown 测试材料
+├── fixtures/          # 虚构的 Markdown 测试材料（含合同附件）
 ├── huggleface_downloader.py
 ├── unit.test.ts
 ├── run-live.ts
@@ -61,7 +61,7 @@ llama-server -m ".\tests\qwen2.5-0.5b-instruct-q4_0.gguf" -ngl 0 -c 8192 -b 512 
 npx tsx ./src/hosts/node.ts ./tests
 ```
 
-程序递归读取输入目录的 `.md`、`.markdown`，**原位覆盖这些文件**，不生成额外输出文件夹。先递归收集并合并全部 Markdown 文本；合并后总长度不超过 20,000 字符时只生成 **1 个 chunk**，超过才按最多 20,000 字符、相邻块重叠 50 字符切片。因此两个短 Markdown 通常为 **1 个 chunk**，`fileCount` 仍为 2。整个目录使用一份隐藏的 `.anonymize-map.json` 可逆映射；仅对姓名、机构、中国身份证、大陆手机号和统一社会信用代码脱敏，合同编号、案号等保留原文。若发现 `.anonymize-map.json`，本次运行会跳过 LLM，使用映射递归恢复全部 `.md` / `.markdown` 文件，并在成功后删除映射文件；下一次运行才重新执行脱敏。
+程序递归读取输入目录的 `.md`、`.markdown`，**原位覆盖这些文件**，不生成额外输出文件夹。先递归收集并合并全部 Markdown 文本；合并后总长度不超过 20,000 字符时只生成 **1 个 chunk**，超过才按最多 20,000 字符、相邻块重叠 50 字符切片。因此两个短 Markdown 通常为 **1 个 chunk**，`fileCount` 仍为 2。整个目录使用一份隐藏的 `.anonymize-map.json` 可逆映射；姓名按首末字掩码、同姓重复时增加 `*`，较长的机构全名保留前置城市名（如 `深圳腾讯计算机有限公司 → [深圳腾*司]`），机构简称不带城市（如 `腾讯公司 → [腾*司]`）。身份证、手机号、统一社会信用代码都使用 `[...]` 包围的星号掩码；相同前缀发生冲突时增加星号而非 `-1`，合同编号、案号等普通编码保留原文。**GBNF 用来约束本地模型仅输出四数组的实体 JSON；星号掩码和中括号由 TypeScript 后处理生成，而非让模型生成或改写。**若发现 `.anonymize-map.json`，本次运行会跳过 LLM，使用映射递归恢复全部 `.md` / `.markdown` 文件，并在成功后删除映射文件；下一次运行才重新执行脱敏。恢复结果只包含动作、目录、映射路径和文件数，不显示无意义的 `chunkCount=0` 或零值分类统计。
 
 ### 隐私与错误处理
 

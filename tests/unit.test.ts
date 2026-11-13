@@ -76,6 +76,7 @@ test("existing .gitignore keeps rules and gets the map exclusion exactly once",a
     };
     const job=new MarkdownDirectoryAnonymizer(source,stub,createNodeFilePort());
     const result=await job.process();
+    if(result.action!=="anonymized")throw new Error("Expected anonymization");
     assert.equal(result.chunkCount,1);
     const ignore=await fs.readFile(path.join(source,".gitignore"),"utf8");
     assert.equal(ignore,existing+".anonymize-map.json\r\n");
@@ -146,7 +147,7 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     };
     const job=new MarkdownDirectoryAnonymizer(source,stub,createNodeFilePort());
     const first=await job.process();
-    assert.equal(first.action,"anonymized");
+    if(first.action!=="anonymized")throw new Error("Expected anonymization");
     assert.equal(first.fileCount,3);
     assert.equal(first.outputDir,source);
     assert.equal(first.mapPath,path.join(source,".anonymize-map.json"));
@@ -161,6 +162,11 @@ test("recursive anonymization then next run restores Markdown only and deletes h
       const output=await fs.readFile(path.join(source,file),"utf8");
       assert.ok(!output.includes("李明"),"person was not masked in "+file);
       assert.ok(output.includes("[李*]"),"person mask missing in "+file);
+      if(file!==" .private/hidden.markdown".trim()) {
+        assert.ok(output.includes("[110101************]"),"bracketed ID mask missing in "+file);
+        assert.ok(output.includes("[1380013****]"),"bracketed phone mask missing in "+file);
+        assert.ok(output.includes("[91350211**********]"),"bracketed USCC mask missing in "+file);
+      }
     }
     assert.equal(await fs.readFile(path.join(source,"notes.txt"),"utf8"),textOriginal,
       "non-Markdown files must never be anonymized");
@@ -175,13 +181,15 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     const second=await job.process();
     assert.equal(second.action,"restored");
     assert.equal(second.fileCount,3);
-    assert.equal(second.chunkCount,0);
-    assert.deepEqual(second.counts,{PER:0,ORG:0,NUM:0});
+    assert.ok(!("chunkCount" in second),"restore JSON must not contain chunkCount");
+    assert.ok(!("counts" in second),"restore JSON must not contain counts");
     assert.equal(await fs.readFile(path.join(source,"case.md"),"utf8"),originalCase);
     assert.equal(await fs.readFile(path.join(source,"nested/reference.markdown"),"utf8"),originalReference);
     assert.equal(await fs.readFile(path.join(source,".private/hidden.markdown"),"utf8"),hiddenOriginal);
     assert.equal(await fs.readFile(path.join(source,"notes.txt"),"utf8"),textOriginal,
       "restoration must not touch non-Markdown files");
+    assert.equal(JSON.stringify(second).includes('"counts"'),false);
+    assert.equal(JSON.stringify(second).includes('"chunkCount"'),false);
     assert.ok(!await exists(first.mapPath),"hidden map must be deleted after successful restoration");
     assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
     assert.equal(calls,1,"restoration must not call the local model");

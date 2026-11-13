@@ -26,6 +26,7 @@ async function main():Promise<void> {
     await fs.writeFile(path.join(source,"case.md"),original);
     const job=new MarkdownDirectoryAnonymizer(source,new LlamaServerClient(url),createNodeFilePort());
     const result=await job.process();
+    if(result.action!=="anonymized")throw new Error("Expected anonymization");
     assert.equal(result.fileCount,1);
     assert.equal(result.chunkCount,1);
     assert.ok(result.counts.PER>=1 && result.counts.ORG>=1 && result.counts.NUM>=1);
@@ -35,8 +36,8 @@ async function main():Promise<void> {
     assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
     const output=await fs.readFile(path.join(source,"case.md"),"utf8");
     assert.ok(output.includes("[李*]"),"Expected Chinese person mask");
-    assert.ok(output.includes("[星*司]"),"Expected Chinese organization mask");
-    assert.ok(output.includes("1380013****"),"Expected mobile mask");
+    assert.ok(output.includes("[深圳星*司]"),"Expected city-aware Chinese organization mask");
+    assert.ok(output.includes("[1380013****]"),"Expected bracketed mobile mask");
     assert.ok(output.includes("HT-2026-0001"),"Generic contract ID must remain unchanged");
     for(const raw of ["李明","深圳星辰科技有限公司","13800138000"])
       assert.ok(!output.includes(raw),"Unmasked entity "+raw);
@@ -45,6 +46,12 @@ async function main():Promise<void> {
     for(const raw of ["李明","深圳星辰科技有限公司","13800138000"])
       assert.ok(Object.values(mapping).includes(raw),"Missing reversible original: "+raw);
     assert.ok(!Object.values(mapping).includes("HT-2026-0001"));
+    assert.equal(mapping["[1380013****]"],"13800138000");
+    const restored=await job.process();
+    assert.equal(restored.action,"restored");
+    assert.ok(!("counts" in restored) && !("chunkCount" in restored));
+    assert.equal(await fs.readFile(path.join(source,"case.md"),"utf8"),original);
+    await assert.rejects(()=>fs.stat(result.mapPath),/ENOENT/);
     await assert.rejects(()=>fs.stat(source+"_脱敏后"),/ENOENT/);
     console.log("PASS REAL GGUF: local inference, in-place Markdown overwrite, map and no generic NUM markers");
     console.log(JSON.stringify({files:result.fileCount,chunks:result.chunkCount,counts:result.counts}));
