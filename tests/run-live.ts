@@ -15,7 +15,22 @@ async function main():Promise<void> {
   try {
     const source=path.join(dir,"cases");
     await fs.mkdir(source);
-    await fs.copyFile("tests/fixtures/case.md",path.join(source,"case.md"));
+    // Keep the real GGUF integration compact enough for a macOS CPU runner.
+    const input=[
+      "姓名：李明",
+      "公司：深圳星辰科技有限公司",
+      "身份证：110101199001012345",
+      "手机：13800138000",
+      "统一社会信用代码：91350211M000100Y43",
+      "合同编号：HT-2026-0001",
+      "登记日期：1970年1月1日",
+      "签署时间：2025年",
+      "归档日期：2026.09.08",
+      "合同金额：60000万元",
+      "报销金额：3000元",
+      "社会安全号码：123-45-6789"
+    ].join("\n")+"\n";
+    await fs.writeFile(path.join(source,"case.md"),input);
     const job=new MarkdownDirectoryAnonymizer(source,new LlamaServerClient(url),createNodeFilePort());
     const result=await job.process();
     assert.equal(result.fileCount,1);
