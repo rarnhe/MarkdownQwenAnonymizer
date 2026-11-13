@@ -13,7 +13,8 @@ export class CocoaLlamaClient {
 
   extractEntitiesFromChunk(text:string):ExtractedEntities {
     ObjC.import("Foundation");
-    const request=$.NSMutableURLRequest.requestWithURL($.NSURL.URLWithString(ns(this.url+"/v1/chat/completions")));
+    const endpoint=$.NSURL.alloc.initWithString(ns(this.url+"/v1/chat/completions"));
+    const request=$.NSMutableURLRequest.alloc.initWithURL(endpoint);
     request.setHTTPMethod(ns("POST"));
     request.setValueForHTTPHeaderField(ns("application/json"),ns("Content-Type"));
     request.setTimeoutInterval(180);
