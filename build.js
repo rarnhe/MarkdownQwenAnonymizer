@@ -18,6 +18,25 @@ esbuild.buildSync({...common,outfile:cli,
   footer:{js:"\nfunction run(argv) { return JxaAnonymizer.run(argv); }\n"}
 });
 fs.chmodSync(cli,0o755);
-// Finder Quick Action: script engine is initialized outside Automator's run().
+// Finder Quick Action: full engine code is generated at top level, before run().
+const automatorFooter=[
+  "function run(input, parameters) {",
+  '  ObjC.import("Foundation");',
+  "  if (!input || input.length !== 1) {",
+  '    throw new Error("Select one Markdown file or one folder in Finder.");',
+  "  }",
+  "  var selected = input[0];",
+  '  var raw = typeof selected === "string" ? selected : selected.toString();',
+  "  var posixPath = ObjC.unwrap($.NSString.stringWithString(String(raw)).stringByStandardizingPath);",
+  "  JSON.parse(JxaAnonymizer.run([posixPath]));",
+  "  return input;",
+  "}"
+].join("\n");
 esbuild.buildSync({...common,outfile:automator,
-  footer:{js:
+  footer:{js:"\n"+automatorFooter+"\n"}
+});
+console.log(JSON.stringify({
+  artifacts:["dist/anonymizer.osascript.js","dist/anonymizer.automator.js"],
+  bundleBytes:{osascript:fs.statSync(cli).size,automator:fs.statSync(automator).size},
+  nodeRuntime:false
+}));
