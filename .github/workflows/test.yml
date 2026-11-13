@@ -10,7 +10,7 @@ permissions:
   contents: write
 concurrency:
   group: markdown-qwen-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   validate:
     runs-on: macos-latest
@@ -53,6 +53,20 @@ jobs:
         run: |
           set -euo pipefail
           npm run test:unit 2>&1 | tee tests/output/unit.log
+      - name: Build standalone JXA osascript and Automator files
+        id: build
+        if: always()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee tests/output/build.log
+      - name: Execute real osascript for file and directory with local HTTP fixture
+        id: jxa
+        if: always()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          npm run test:jxa 2>&1 | tee tests/output/jxa.log
       - name: Setup Python
         uses: actions/setup-python@v6
         if: always()
@@ -106,6 +120,8 @@ jobs:
           STAGE_NPM: ${{ steps.npm.outcome }}
           STAGE_TYPECHECK: ${{ steps.typecheck.outcome }}
           STAGE_UNIT: ${{ steps.unit.outcome }}
+          STAGE_BUILD: ${{ steps.build.outcome }}
+          STAGE_JXA: ${{ steps.jxa.outcome }}
           STAGE_MODEL: ${{ steps.model.outcome }}
           STAGE_SERVER: ${{ steps.server.outcome }}
           STAGE_LIVE: ${{ steps.live.outcome }}
@@ -142,6 +158,8 @@ jobs:
           test "${{ steps.npm.outcome }}" = success
           test "${{ steps.typecheck.outcome }}" = success
           test "${{ steps.unit.outcome }}" = success
+          test "${{ steps.build.outcome }}" = success
+          test "${{ steps.jxa.outcome }}" = success
           test "${{ steps.model.outcome }}" = success
           test "${{ steps.server.outcome }}" = success
           test "${{ steps.live.outcome }}" = success
