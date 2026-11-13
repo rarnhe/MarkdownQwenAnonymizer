@@ -37,7 +37,7 @@ for(const [name,,log] of failed) {
 }
 lines.push("","## 模型与隐私说明","",
   "- 实际 GGUF 在 CI 时下载到 tests/，不提交为普通 Git 对象。",
-  "- 不上传 GGUF 权重或含真实值的 anonymize-map.json。",
+  "- 不上传 GGUF 权重或含真实值的 .anonymize-map.json。",
   "- 真实资料发布前仍必须人工核对遗漏实体。","");
 fs.writeFileSync(path.join(root,"test_report.md"),lines.join("\n"),"utf8");
 if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\n"),"utf8");
