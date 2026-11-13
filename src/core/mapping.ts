@@ -87,7 +87,8 @@ export function makeMapping(
     realToPlaceholder:Object.create(null)
   };
   const used=new Set(reservedTokens);
-  // The first visible mention gets the shortest available mask; duplicate originals reuse it.
+  // Register previously unseen values in first-mention order. Every new value
+  // consults the global realToPlaceholder map and never changes an older mask.
   // This avoids depending on model output ordering or locale-specific sorting.
   const source=markdownDocuments.join("\n\n");
   const byAppearance=(values:string[]):string[]=> {

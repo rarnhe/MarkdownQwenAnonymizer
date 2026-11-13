@@ -190,6 +190,33 @@ test("same-area ID and same-prefix USCC reveal only the final check character on
   for(const [masked,real] of Object.entries(map.placeholderToReal))
     assert.equal(map.realToPlaceholder[real],masked);
 });
+test("incremental numeric map reuses identical originals and reveals check characters only after collision",()=>{
+  const idA="110101199001012345";
+  const idB="110101199001112345";
+  const idC="110101199002012345"; // same prefix and last check character as idB
+  const usccA="91350211M000100Y43";
+  const usccB="91350211M002100Y48";
+  const usccC="91350211M003100Y48";
+  const phoneA="13800138000",phoneB="13800139999";
+  const source=[
+    idA,usccA,phoneA,idA,usccA,phoneA,
+    idB,usccB,phoneB,idC,usccC,idB
+  ].join("\n");
+  const map=makeMapping(categories([],[],[
+    idC,idB,idA,idA,usccC,usccB,usccA,phoneB,phoneA,phoneA
+  ]),new Set(),[source]);
+  assert.equal(map.realToPlaceholder[idA],"[110101************]");
+  assert.equal(map.realToPlaceholder[idB],"[110101***********5]");
+  assert.equal(map.realToPlaceholder[idC],"[110101************5]");
+  assert.equal(map.realToPlaceholder[usccA],"[91350211**********]");
+  assert.equal(map.realToPlaceholder[usccB],"[91350211*********8]");
+  assert.equal(map.realToPlaceholder[usccC],"[91350211**********8]");
+  assert.equal(map.realToPlaceholder[phoneA],"[1380013****]");
+  assert.equal(map.realToPlaceholder[phoneB],"[1380013*****]");
+  assert.equal(Object.keys(map.placeholderToReal).length,8,"duplicate originals must not add map entries");
+  assert.equal(restoreText(anonymizeText(source,map),map.placeholderToReal),source);
+});
+
 test("US SSN and monetary amounts are ignored even when returned by the model",()=>{
   const source="金额：60000万元、3000元、人民币5000元；SSN：123-45-6789；合同编号：HT-2026-0001。";
   const spans=findMoneySpans(source);
