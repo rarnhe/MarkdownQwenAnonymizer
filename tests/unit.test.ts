@@ -80,10 +80,10 @@ test("real recursive filesystem output retains tree, uses one global map, never 
       const output=await fs.readFile(path.join(first.outputDir,file),"utf8");
       for(const sensitive of ["李明","深圳星辰科技有限公司","110101199001012345","13800138000"])
         assert.ok(!output.includes(sensitive),"leaked token in "+file+": "+sensitive);
-      assert.ok(output.includes("123-45-6789"),"US SSN should remain untouched");
       assert.ok(output.includes("110101************"));
       assert.ok(output.includes("1380013****"));
       assert.ok(output.includes("91350211**********"));
+      if(file==="case.md")assert.ok(output.includes("123-45-6789"),"US SSN should remain untouched");
       assert.match(output,/\[李\*\]/);
       assert.match(output,/\[星\*司\]/);
     }

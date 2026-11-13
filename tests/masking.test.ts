@@ -130,6 +130,8 @@ test("Chinese ID, mobile and unified social credit code receive format-preservin
   assert.ok(isChineseIdNumber(id));
   assert.ok(isChineseMobileNumber(phone));
   assert.ok(isUnifiedSocialCreditCode(uscc));
+  const ignored=makeMapping(categories([],[],["60000万元","3000元","123-45-6789"]));
+  assert.deepEqual(Object.keys(ignored.realToPlaceholder),[]);
   const map=makeMapping(categories([],[],[id,phone,uscc,"HT-2026-0001"]));
   assert.equal(map.realToPlaceholder[id],"429114************");
   assert.equal(map.realToPlaceholder[phone],"1348579****");
