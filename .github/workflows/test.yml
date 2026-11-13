@@ -93,6 +93,13 @@ jobs:
         run: |
           set -euo pipefail
           npm run test:live 2>&1 | tee tests/output/live.log
+      - name: Diagnose real GGUF failure from local synthetic fixture
+        if: ${{ always() && steps.live.outcome == 'failure' }}
+        run: |
+          echo "Last llama-server log lines (synthetic fixture only):"
+          tail -n 80 tests/output/llama-server.log || true
+          echo "Last integration log lines:"
+          tail -n 80 tests/output/live.log || true
       - name: Always write test_report.md
         if: always()
         env:
