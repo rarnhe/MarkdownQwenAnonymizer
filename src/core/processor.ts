@@ -15,14 +15,10 @@ function appendIgnoreRule(original:string):string {
   const newline=original.includes("\r\n")?"\r\n":"\n";
   return original+(original && !original.endsWith("\n")?newline:"")+IGNORE_RULE+newline;
 }
-export interface AnonymizeResult {
-  action:"anonymized"|"restored";
-  outputDir:string;
-  mapPath:string;
-  fileCount:number;
-  chunkCount:number;
-  counts:{PER:number;ORG:number;NUM:number};
-}
+export type AnonymizeResult =
+  | {action:"restored";outputDir:string;mapPath:string;fileCount:number}
+  | {action:"anonymized";outputDir:string;mapPath:string;fileCount:number;
+     chunkCount:number;counts:{PER:number;ORG:number;NUM:number}};
 interface StagedFile {original:string;pending:string;backup:string;content:string;mode:number;}
 
 export class MarkdownDirectoryAnonymizer {
@@ -147,8 +143,7 @@ export class MarkdownDirectoryAnonymizer {
     const failedCleanup=cleanup.flatMap((value,i)=>value.status==="rejected"?[staged[i].backup]:[]);
     if(failedCleanup.length)
       throw new Error("Markdown was restored and map removed, but temporary backups could not be deleted: "+failedCleanup.join(", "));
-    return {action:"restored",outputDir:this.srcDirPath,mapPath,fileCount:contents.length,chunkCount:0,
-      counts:{PER:0,ORG:0,NUM:0}};
+    return {action:"restored",outputDir:this.srcDirPath,mapPath,fileCount:contents.length};
   }
 
   private async anonymizeMarkdown(mapPath:string):Promise<AnonymizeResult> {
@@ -174,7 +169,7 @@ export class MarkdownDirectoryAnonymizer {
     for(const file of contents) {
       for(const match of file.content.matchAll(/\[[^\]\r\n]{1,80}\]/g))reserved.add(match[0]);
     }
-    const mapping:EntityMapping=makeMapping(categories,reserved);
+    const mapping:EntityMapping=makeMapping(categories,reserved,contents.map(file=>file.content));
     const txid=randomUUID();
     const staged:StagedFile[]=contents.map((file,i)=>{
       const dir=path.dirname(file.filePath);
