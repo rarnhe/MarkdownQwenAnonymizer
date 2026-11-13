@@ -112,6 +112,8 @@ test("recursive Markdown uses a single reversible dictionary and leaves dates in
     const job=new MarkdownDirectoryAnonymizer(source,stub,createNodeFilePort());
     const result=await job.process();
     assert.equal(result.fileCount,2);
+    assert.equal(result.chunkCount,1,"short files must share one extraction chunk");
+    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),"anonymize-map.json\n");
     const a=await fs.readFile(path.join(result.outputDir,"one.md"),"utf8");
     const b=await fs.readFile(path.join(result.outputDir,"nested","two.markdown"),"utf8");
     const mapping=JSON.parse(await fs.readFile(path.join(source,"anonymize-map.json"),"utf8")) as Record<string,string>;
