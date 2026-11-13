@@ -159,3 +159,6 @@ tests/output/
 **/.anonymize-*.bak
 *_脱敏后/
 *_脱敏后 [0-9]*/
+
+# Do not upload real mappings; sibling JSON files must be excluded at their own parent directory.
+# Mapping names are user-folder-specific, so protect them with a parent .gitignore.

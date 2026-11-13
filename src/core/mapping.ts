@@ -33,10 +33,10 @@ function splitPlacePrefix(value:string):{place:string;core:string} {
 function chineseLabel(real:string,kind:"PER"|"ORG"):string {
   const {place,core}=kind==="ORG" ? splitPlacePrefix(real) : {place:"",core:real.trim()};
   const chars=Array.from(core.replace(/\s+/g,""));
-  if(chars.length<2)return kind==="PER"?"[人*]":"[机*]";
+  if(chars.length<2)return kind==="PER"?"「人*」":"「机*」";
   // Only full, relatively long organization names retain the leading city.
   const city=kind==="ORG" && place && chars.length>=6 ? place : "";
-  return "["+city+chars[0]+"*"+(chars.length===2?"":chars[chars.length-1])+"]";
+  return "「"+city+chars[0]+"*"+(chars.length===2?"":chars[chars.length-1])+"」";
 }
 /** Register one real value exactly once. Never rewrite a previously assigned mask.
  * On a collision, numeric IDs/credit codes reveal the final check character,
@@ -47,7 +47,7 @@ function addMapping(
   checkDigitMask?:string
 ):void {
   if(Object.prototype.hasOwnProperty.call(mapping.realToPlaceholder,real))return;
-  if(!initialMask.startsWith("[") || !initialMask.endsWith("]") || !initialMask.includes("*"))
+  if(!initialMask.startsWith("「") || !initialMask.endsWith("」") || !initialMask.includes("*"))
     throw new Error("A reversible mask must be bracketed and contain a star");
   let mask=initialMask;
   if(used.has(mask) && checkDigitMask)mask=checkDigitMask;
@@ -69,9 +69,9 @@ function addMaskedNumbers(
     if(Object.prototype.hasOwnProperty.call(mapping.realToPlaceholder,real))continue;
     const prefix=real.slice(0,prefixLength);
     const maskedCount=real.length-prefixLength;
-    const initialMask="["+prefix+"*".repeat(maskedCount)+"]";
+    const initialMask="「"+prefix+"*".repeat(maskedCount)+"」";
     const checkDigitMask=kind==="PHONE"?undefined
-      :"["+prefix+"*".repeat(maskedCount-1)+real.slice(-1).toUpperCase()+"]";
+      :"「"+prefix+"*".repeat(maskedCount-1)+real.slice(-1).toUpperCase()+"」";
     addMapping(real,initialMask,mapping,used,checkDigitMask);
   }
 }
