@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T18:08:54.383Z
-- GitHub run: 43479324247
-- Commit SHA: de1eef17132d1200c19061e9c5adea63544da8e5
+- CI 时间（UTC）: 2026-11-13T18:12:39.950Z
+- GitHub run: 43480103249
+- Commit SHA: 552f014767056a90f270d33d021791ebdf956af9
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -13,9 +13,9 @@
 | Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
 | Standalone JXA builds | **SUCCESS** | tests/output/build.log |
 | macOS JXA file/folder tests | **FAILURE** | tests/output/jxa.log |
-| Qwen GGUF download | **SUCCESS** | tests/output/download.log |
-| Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
-| Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
+| Qwen GGUF download | **SKIPPED** | tests/output/download.log |
+| Real llama-server startup | **SKIPPED** | tests/output/server-ready.log |
+| Real Qwen GGUF integration | **SKIPPED** | tests/output/live.log |
 
 ## 失败项
 
@@ -26,9 +26,9 @@
 > markdown-qwen-anonymizer@1.0.0 test:jxa
 > tsx tests/run-jxa.ts
 
-/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.requestWithURL') (-2700)
-Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js /var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/jxa-anonymizer-qyLSMG/contract.md
-/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.requestWithURL') (-2700)
+/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)
+Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js /var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/jxa-anonymizer-48e4fy/contract.md
+/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)
 
     at genericNodeError (node:internal/errors:986:15)
     at wrappedFn (node:internal/errors:540:14)
@@ -41,14 +41,26 @@ Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAno
   output: [
     null,
     '',
-    "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.requestWithURL') (-2700)\n"
+    "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)\n"
   ],
-  pid: 1374,
+  pid: 1366,
   stdout: '',
-  stderr: "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.requestWithURL') (-2700)\n"
+  stderr: "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)\n"
 }
 
 ~~~
+
+### Qwen GGUF download
+
+- 没有对应日志（阶段可能未启动）。
+
+### Real llama-server startup
+
+- 没有对应日志（阶段可能未启动）。
+
+### Real Qwen GGUF integration
+
+- 没有对应日志（阶段可能未启动）。
 
 
 ## 模型与隐私说明
