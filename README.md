@@ -26,7 +26,7 @@ npm run build
 - Markdown **原位覆盖**；`「李*」`、`「深圳星*司」`、`「1380013****」` 等 `「...」` 掩码，不再使用中括号。
 - **目录映射文件位于目录外同级**，例如 `/a/contracts/` → `/a/contracts.json`。单 Markdown `/a/case.md` → `/a/case.json`。遇到对应 JSON 则执行反脱敏并删除映射，不调用模型。
 - 全目录共用一份全局实体映射、20,000 字符切片与 50 字符重叠，重复实体复用掩码，身份证/统一社会信用代码冲突时才露末位，普通合同编号、日期和金额不修改。
-- `dist/anonymizer.osascript.js` 通过 macOS `osascript -l JavaScript` 执行，使用 Cocoa/Objective-C 文件系统与 Foundation HTTP，运行时不需要 Node；编译期使用 esbuild。
+- `dist/anonymizer.osascript.js` 通过 macOS `osascript -l JavaScript` 执行，使用 Cocoa/Objective-C 文件系统与 Foundation NSTask + macOS 内置 curl 请求本地服务，运行时不需要 Node；编译期使用 esbuild。
 - `dist/anonymizer.automator.js` 将源码复制到 Automator「快速操作」→「运行 JavaScript」，设置工作流程接收 Finder 的文件或文件夹；`run(input, parameters)` 接收**恰好一个**选中项并调用已在函数外初始化的引擎。
 - 两个 JXA 产物均依赖**已启动**的本地 llama-server，模型不嵌入 JavaScript。
 

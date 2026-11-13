@@ -3,21 +3,19 @@ import type {ExtractedEntities} from "../core/types";
 
 declare const ObjC:any;
 declare const $:any;
-declare const Ref:any;
 function ns(value:string):any{return $.NSString.stringWithString(value);}
 function unwrap(value:any):string{return String(ObjC.unwrap(value));}
 
-/** Foundation's synchronous HTTP bridge allows JXA to run without Node/fetch. */
+/** Standalone macOS JXA HTTP transport.
+ * JXA on current macOS does not expose NSMutableURLRequest reliably.
+ * Use Foundation NSTask + built-in /usr/bin/curl with JSON sent through stdin:
+ * no Node, no shell interpolation, and no plaintext request files.
+ */
 export class CocoaLlamaClient {
   constructor(private readonly url:string="http://127.0.0.1:9931") {}
 
   extractEntitiesFromChunk(text:string):ExtractedEntities {
     ObjC.import("Foundation");
-    const endpoint=$.NSURL.alloc.initWithString(ns(this.url+"/v1/chat/completions"));
-    const request=$.NSMutableURLRequest.alloc.initWithURL(endpoint);
-    request.setHTTPMethod(ns("POST"));
-    request.setValueForHTTPHeaderField(ns("application/json"),ns("Content-Type"));
-    request.setTimeoutInterval(180);
     const prompt=[
       "请提取中国法律文档的人名、机构名、身份证、手机号、统一社会信用代码。忽略其他编号、金额、日期及美国SSN。",
       "严格输出JSON，字段顺序：persons、organizations、id_cards、codes，值均为字符串数组。身份证放id_cards，手机和统一社会信用代码放codes。不要解释。",
@@ -27,14 +25,29 @@ export class CocoaLlamaClient {
       messages:[{role:"user",content:prompt}],max_tokens:192,temperature:0,
       grammar:ENTITY_GBNF_GRAMMAR,stream:false
     });
-    request.setHTTPBody(ns(body).dataUsingEncoding($.NSUTF8StringEncoding));
-    const response=Ref(),error=Ref();
-    const data=$.NSURLConnection.sendSynchronousRequestReturningResponseError(request,response,error);
-    if(!data)throw new Error("llama-server request failed: "+String(error[0]||"no data"));
-    const responseObj=response[0];
-    const status=responseObj?Number(responseObj.statusCode):200;
-    const result=unwrap($.NSString.alloc.initWithDataEncoding(data,$.NSUTF8StringEncoding));
-    if(status<200||status>=300)throw new Error("llama-server HTTP "+status+": "+result.slice(0,250));
+    const task=$.NSTask.alloc.init;
+    const stdin=$.NSPipe.pipe,stdout=$.NSPipe.pipe,stderr=$.NSPipe.pipe;
+    task.launchPath="/usr/bin/curl";
+    task.arguments=[
+      "--silent","--show-error","--fail","--max-time","180",
+      "--request","POST","--header","Content-Type: application/json",
+      "--data-binary","@-",this.url+"/v1/chat/completions"
+    ];
+    task.standardInput=stdin;
+    task.standardOutput=stdout;
+    task.standardError=stderr;
+    task.launch;
+    const writer=stdin.fileHandleForWriting;
+    writer.writeData(ns(body).dataUsingEncoding($.NSUTF8StringEncoding));
+    writer.closeFile;
+    // Response is a small, bounded JSON message (max_tokens=192).
+    const resultData=stdout.fileHandleForReading.readDataToEndOfFile;
+    const errorData=stderr.fileHandleForReading.readDataToEndOfFile;
+    task.waitUntilExit;
+    const result=unwrap($.NSString.alloc.initWithDataEncoding(resultData,$.NSUTF8StringEncoding));
+    const errorText=unwrap($.NSString.alloc.initWithDataEncoding(errorData,$.NSUTF8StringEncoding));
+    if(Number(task.terminationStatus)!==0)
+      throw new Error("llama-server curl failed: "+errorText.slice(0,300));
     const decoded=JSON.parse(result);
     const content=decoded.choices?.[0]?.message?.content;
     if(typeof content!=="string")throw new Error("No JSON model response");

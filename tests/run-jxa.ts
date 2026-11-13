@@ -85,7 +85,7 @@ async function main():Promise<void>{
     assert.equal(await fs.readFile(a,"utf8"),originalA);
     assert.equal(await fs.readFile(b,"utf8"),originalB);
     assert.ok(!await exists(directory.mapPath));
-    console.log("PASS JXA: executable osascript file + directory, Foundation HTTP, sibling map and exact restoration");
+    console.log("PASS JXA: executable osascript file + directory, Foundation NSTask/curl HTTP, sibling map and exact restoration");
   }finally {
     server.kill("SIGTERM");
     await fs.rm(root,{recursive:true,force:true});
