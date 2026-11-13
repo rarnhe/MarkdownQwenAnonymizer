@@ -46,7 +46,7 @@ function addMapping(
   real:string,initialMask:string,mapping:EntityMapping,used:Set<string>,
   checkDigitMask?:string
 ):void {
-  if(Object.hasOwn(mapping.realToPlaceholder,real))return;
+  if(Object.prototype.hasOwnProperty.call(mapping.realToPlaceholder,real))return;
   if(!initialMask.startsWith("[") || !initialMask.endsWith("]") || !initialMask.includes("*"))
     throw new Error("A reversible mask must be bracketed and contain a star");
   let mask=initialMask;
@@ -66,7 +66,7 @@ function addMaskedNumbers(
 ):void {
   const prefixLength=kind==="ID"?6:kind==="USCC"?8:7;
   for(const real of values) {
-    if(Object.hasOwn(mapping.realToPlaceholder,real))continue;
+    if(Object.prototype.hasOwnProperty.call(mapping.realToPlaceholder,real))continue;
     const prefix=real.slice(0,prefixLength);
     const maskedCount=real.length-prefixLength;
     const initialMask="["+prefix+"*".repeat(maskedCount)+"]";
