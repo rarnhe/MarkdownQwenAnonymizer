@@ -13,7 +13,6 @@ export class GlobalEntityStore {
   private readonly idCards = new Set<string>();
   private readonly phones = new Set<string>();
   private readonly unifiedSocialCreditCodes = new Set<string>();
-  private readonly codes = new Set<string>();
   private readonly ignoredMoneyValues = new Set<string>();
 
   addEntities(entities: Partial<ExtractedEntities>): void {
@@ -44,7 +43,7 @@ export class GlobalEntityStore {
     if(isChineseIdNumber(clean)) this.idCards.add(clean);
     else if(isChineseMobileNumber(clean)) this.phones.add(clean);
     else if(isUnifiedSocialCreditCode(clean)) this.unifiedSocialCreditCodes.add(clean);
-    else this.codes.add(clean);
+    // Generic contract numbers, case numbers and other codes are deliberately ignored.
   }
 
   /** Regex backstop for Chinese ID cards, mobile phones and unified credit codes. */
@@ -77,7 +76,7 @@ export class GlobalEntityStore {
   exportSortedCategories(): Categories {
     const sort=(set:Set<string>) => [...set].sort((a,b)=>b.length-a.length || a.localeCompare(b,"zh"));
     return {
-      PER:sort(this.persons),ORG:sort(this.organizations),NUM:sort(this.codes),
+      PER:sort(this.persons),ORG:sort(this.organizations),NUM:[],
       ID:sort(this.idCards),PHONE:sort(this.phones),USCC:sort(this.unifiedSocialCreditCodes)
     };
   }

@@ -14,7 +14,7 @@ async function main():Promise<void> {
     const job=new MarkdownDirectoryAnonymizer(input,new LlamaServerClient(url),createNodeFilePort());
     const result=await job.process();
     console.log(JSON.stringify(result,null,2));
-    console.log("WARNING: .anonymize_map.json contains original plaintext identifiers. Do not commit or share.");
+    console.log("WARNING: source Markdown files were overwritten IN PLACE. anonymize-map.json contains plaintext identifiers: do not commit or share.");
   } catch(error) {
     console.error("Anonymization failed:",error);
     process.exitCode=1;

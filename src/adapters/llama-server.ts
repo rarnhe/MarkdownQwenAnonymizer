@@ -57,8 +57,8 @@ export class LlamaServerClient implements EntityExtractor {
 
   async extractEntitiesFromChunk(chunkText:string,isControllableCot:boolean):Promise<ExtractedEntities> {
     const prompt=[
-      "你是一名专业的中国法律文档隐私审查助手。请仔细阅读文本，抽取人名、公司/机构名称、中国居民身份证号、统一社会信用代码、中国大陆手机号码、合同/文件/案号/账号等需要保护的编号。",
-      "只输出JSON，必须依次包含persons、organizations、id_cards、codes四个字符串数组，不允许解释、重复或者编造。中国大陆手机号、统一社会信用代码属于codes；中国居民身份证号属于id_cards。忽略美国社会安全号码（SSN），不要抽取；忽略所有金额及货币数值（如60000万元、3000元、人民币5000元、￥3,000），不要抽取。年份和日期（如2025年、1970年1月1日、2026.09.08）不是编号，请勿抽取。",
+      "你是一名专业的中国法律文档隐私审查助手。请仔细阅读文本，只抽取人名、公司/机构名称、中国居民身份证号、统一社会信用代码、中国大陆手机号码。",
+      "只输出JSON，必须依次包含persons、organizations、id_cards、codes四个字符串数组，不允许解释、重复或者编造。中国大陆手机号、统一社会信用代码属于codes；中国居民身份证号属于id_cards。合同编号、文件编号、案号、账号及其他普通编号不要抽取。忽略美国社会安全号码（SSN），不要抽取；忽略所有金额及货币数值（如60000万元、3000元、人民币5000元、￥3,000），不要抽取。年份和日期（如2025年、1970年1月1日、2026.09.08）不是编号，请勿抽取。",
       "【文本内容】\n"+chunkText
     ].join("\n");
     const base={

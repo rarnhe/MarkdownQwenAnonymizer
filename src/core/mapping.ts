@@ -1,5 +1,4 @@
-import {findProtectedNumericSpans,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode,isMoneyOnlyToken,isUsSocialSecurityNumber} from "./numbers";
-import {isDateOnlyToken} from "./dates";
+import {findProtectedNumericSpans,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode} from "./numbers";
 import type {Categories,EntityMapping} from "./types";
 
 const GEOGRAPHICAL_PREFIXES=[
@@ -99,22 +98,17 @@ export function makeMapping(categories:Categories,reservedTokens:ReadonlySet<str
     }
   }
 
-  const rawNumbers=[...new Set(categories.NUM)].filter(value=>!isMoneyOnlyToken(value) && !isUsSocialSecurityNumber(value));
-  const idValues=[...(categories.ID ?? []),...rawNumbers.filter(isChineseIdNumber)];
-  const phoneValues=[...(categories.PHONE ?? []),...rawNumbers.filter(isChineseMobileNumber)];
-  const usccValues=[...(categories.USCC ?? []),...rawNumbers.filter(v=>isUnifiedSocialCreditCode(v) && !isChineseIdNumber(v))];
-  const typed=new Set([...idValues,...phoneValues,...usccValues]);
+  // Only recognized Chinese IDs, mainland mobile numbers and unified social
+  // credit codes are masked. Generic contract numbers, case numbers and other
+  // identifiers are intentionally unchanged, even if a model extracted them.
+  const idValues=[...(categories.ID ?? []),...categories.NUM.filter(isChineseIdNumber)];
+  const phoneValues=[...(categories.PHONE ?? []),...categories.NUM.filter(isChineseMobileNumber)];
+  const usccValues=[...(categories.USCC ?? []),
+    ...categories.NUM.filter(v=>isUnifiedSocialCreditCode(v) && !isChineseIdNumber(v))];
 
   addMaskedNumbers(idValues,"ID",mapping,used);
   addMaskedNumbers(usccValues,"USCC",mapping,used);
   addMaskedNumbers(phoneValues,"PHONE",mapping,used);
-
-  let numericIndex=0;
-  for(const real of rawNumbers) {
-    if(typed.has(real) || mapping.realToPlaceholder[real] || isDateOnlyToken(real))continue;
-    const token="[NUM_"+String(++numericIndex).padStart(3,"0")+"]";
-    addMapping(real,token,mapping,used);
-  }
   return mapping;
 }
 
