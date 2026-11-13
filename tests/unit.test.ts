@@ -8,7 +8,7 @@ import {createNodeFilePort} from "../src/adapters/node-fs";
 import {LlamaServerClient} from "../src/adapters/llama-server";
 import {createChunks,createDocumentChunks} from "../src/core/chunks";
 import {ENTITY_GBNF_GRAMMAR} from "../src/core/grammar";
-import {makeMapping,anonymizeText,restoreText} from "../src/core/mapping";
+import {makeMapping,anonymizeText} from "../src/core/mapping";
 import {MarkdownDirectoryAnonymizer} from "../src/core/processor";
 import {GlobalEntityStore} from "../src/core/store";
 import type {EntityExtractor,ExtractedEntities} from "../src/core/types";
@@ -57,7 +57,9 @@ test("directory-wide grouping makes two short Markdown files exactly one chunk",
   assert.ok(grouped[0].includes(docs[1].trim()));
   assert.ok(grouped[0].includes("文档分隔"));
   assert.equal(createDocumentChunks(["",""]).length,0);
-  assert.ok(createDocumentChunks(["A".repeat(23000),"B".repeat(100)],20000,50).length>1);
+  const longChunks=createDocumentChunks(["A".repeat(23000),"B".repeat(100)],20000,50);
+  assert.ok(longChunks.length>1);
+  assert.ok(longChunks.every(chunk=>chunk.length<=20000),"each LLM chunk must stay within 20,000 characters");
 });
 
 test("existing .gitignore keeps rules and gets the map exclusion exactly once",async()=>{
@@ -162,7 +164,7 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     }
     assert.equal(await fs.readFile(path.join(source,"notes.txt"),"utf8"),textOriginal,
       "non-Markdown files must never be anonymized");
-    assert.ok(!await exists(path.join(source,"anonymize-map.json")));
+    assert.ok(!await exists(path.join(source,".anonymize-map.json")));
     assert.deepEqual((await fs.readdir(source)).sort(),
       [".anonymize-map.json",".gitignore",".private","case.md","nested","notes.txt"].sort());
     assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
