@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T07:11:09.241Z
-- GitHub run: 43383513235
-- Commit SHA: 5a7d1bd63841f410a99e3eff31943591799fda28
+- CI 时间（UTC）: 2026-11-13T07:14:04.915Z
+- GitHub run: 43384020467
+- Commit SHA: 4ff30d957499166552e4854f6c0db3918bfe5ee9
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -10,53 +10,14 @@
 |---|---|---|
 | npm ci | **SUCCESS** | tests/output/npm-ci.log |
 | TypeScript typecheck | **SUCCESS** | tests/output/typecheck.log |
-| Anonymizer unit tests | **FAILURE** | tests/output/unit.log |
+| Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
 | Qwen GGUF download | **SUCCESS** | tests/output/download.log |
 | Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
 | Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
 
 ## 失败项
 
-### Anonymizer unit tests
-
-~~~text
-      at TestContext.<anonymous> (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/unit.test.ts:167:12)
-      at async Test.run (node:internal/test_runner/test:1409:7)
-      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
-    generatedMessage: true,
-    code: 'ERR_ASSERTION',
-    actual: false,
-    expected: true,
-    operator: '==',
-    diff: 'simple'
-  }
-
-test at tests/unit.test.ts:243:1
-✖ invalid map is rejected without modifying Markdown (2.706875ms)
-  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Invalid \\.anonymize-map\\.json/. Input:
-  
-  "Error: Invalid .anonymize-map.json: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
-  
-      at async TestContext.<anonymous> (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/unit.test.ts:255:5)
-      at async Test.run (node:internal/test_runner/test:1409:7)
-      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
-    generatedMessage: true,
-    code: 'ERR_ASSERTION',
-    actual: Error: Invalid .anonymize-map.json: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
-        at MarkdownDirectoryAnonymizer.readExistingMap (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/src/core/processor.ts:71:25)
-        at async MarkdownDirectoryAnonymizer.process (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/src/core/processor.ts:86:23)
-        at async waitForActual (node:assert:646:5)
-        at async strict.rejects (node:assert:769:25)
-        at async TestContext.<anonymous> (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/unit.test.ts:255:5)
-        at async Test.run (node:internal/test_runner/test:1409:7)
-        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
-    expected: /Invalid \\.anonymize-map\\.json/,
-    operator: 'rejects',
-    diff: 'simple'
-  }
-
-~~~
-
+- 无，所有必须阶段成功。
 
 ## 模型与隐私说明
 
