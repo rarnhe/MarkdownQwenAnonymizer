@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T18:14:15.372Z
-- GitHub run: 43480606325
-- Commit SHA: 7c6c9eb94fd6bdd9532aaf51e5304e7cb56e2db6
+- CI 时间（UTC）: 2026-11-13T18:23:11.084Z
+- GitHub run: 43480860269
+- Commit SHA: b03940e2e509941af0d437eafa51b075d617a8a0
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -12,56 +12,14 @@
 | TypeScript typecheck | **SUCCESS** | tests/output/typecheck.log |
 | Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
 | Standalone JXA builds | **SUCCESS** | tests/output/build.log |
-| macOS JXA file/folder tests | **FAILURE** | tests/output/jxa.log |
-| Qwen GGUF download | **SKIPPED** | tests/output/download.log |
-| Real llama-server startup | **SKIPPED** | tests/output/server-ready.log |
-| Real Qwen GGUF integration | **SKIPPED** | tests/output/live.log |
+| macOS JXA file/folder tests | **SUCCESS** | tests/output/jxa.log |
+| Qwen GGUF download | **SUCCESS** | tests/output/download.log |
+| Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
+| Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
 
 ## 失败项
 
-### macOS JXA file/folder tests
-
-~~~text
-
-> markdown-qwen-anonymizer@1.0.0 test:jxa
-> tsx tests/run-jxa.ts
-
-/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)
-Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js /var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/jxa-anonymizer-CHR5CN/cases
-/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)
-
-    at genericNodeError (node:internal/errors:986:15)
-    at wrappedFn (node:internal/errors:540:14)
-    at checkExecSyncError (node:child_process:943:11)
-    at execFileSync (node:child_process:979:15)
-    at execute (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:25:16)
-    at main (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:71:21) {
-  status: 1,
-  signal: null,
-  output: [
-    null,
-    '',
-    '/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)\n'
-  ],
-  pid: 1399,
-  stdout: '',
-  stderr: '/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)\n'
-}
-
-~~~
-
-### Qwen GGUF download
-
-- 没有对应日志（阶段可能未启动）。
-
-### Real llama-server startup
-
-- 没有对应日志（阶段可能未启动）。
-
-### Real Qwen GGUF integration
-
-- 没有对应日志（阶段可能未启动）。
-
+- 无，所有必须阶段成功。
 
 ## 模型与隐私说明
 
