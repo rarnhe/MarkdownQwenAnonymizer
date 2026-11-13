@@ -56,31 +56,31 @@ test("contract attachment: star-only collisions, bracketed numeric masks and exa
     assert.equal(first.counts.NUM,5,"two IDs, two USCCs and one repeated phone");
     assert.equal(llmCalls,1);
     const masked=await fs.readFile(file,"utf8");
-    const mapPath=path.join(source,".anonymize-map.json");
+    const mapPath=path.join(tmp,"cases.json");
     const map=JSON.parse(await fs.readFile(mapPath,"utf8")) as Record<string,string>;
-    assert.equal(map["[李*]"],"李明");
-    assert.equal(map["[李**]"],"李鬼");
-    assert.equal(map["[李***]"],"李逵");
-    assert.equal(map["[深圳星*司]"],"深圳星辰科技有限公司");
-    assert.equal(map["[星*司]"],"星辰公司");
-    assert.equal(map["[1380013****]"],"13800138000");
-    assert.equal(map["[110101************]"],"110101199001012345");
-    assert.equal(map["[110101***********5]"],"110101199001112345");
-    assert.equal(map["[91350211**********]"],"91350211M000100Y43");
-    assert.equal(map["[91350211*********8]"],"91350211M002100Y48");
+    assert.equal(map["「李*」"],"李明");
+    assert.equal(map["「李**」"],"李鬼");
+    assert.equal(map["「李***」"],"李逵");
+    assert.equal(map["「深圳星*司」"],"深圳星辰科技有限公司");
+    assert.equal(map["「星*司」"],"星辰公司");
+    assert.equal(map["「1380013****」"],"13800138000");
+    assert.equal(map["「110101************」"],"110101199001012345");
+    assert.equal(map["「110101***********5」"],"110101199001112345");
+    assert.equal(map["「91350211**********」"],"91350211M000100Y43");
+    assert.equal(map["「91350211*********8」"],"91350211M002100Y48");
     assert.equal(Object.keys(map).length,10);
-    assert.ok(Object.keys(map).every(token=>token.startsWith("[")&&token.endsWith("]")));
-    assert.ok(Object.keys(map).every(token=>!/-\d+\]$/.test(token)),"no -1 suffix in masks");
-    assert.ok(masked.includes("姓名：[李*]"));
-    assert.ok(masked.includes("姓名：[李**]"));
-    assert.ok(masked.includes("姓名：[李***]"));
-    assert.ok(masked.includes("机构：[深圳星*司]"));
-    assert.ok(masked.includes("机构：[星*司]"));
-    assert.ok(masked.includes("手机：[1380013****] 手机：[1380013****]"));
-    assert.ok(masked.includes("身份证：[110101************]"));
-    assert.ok(masked.includes("身份证：[110101***********5]"));
-    assert.ok(masked.includes("统一社会信用代码：[91350211**********]"));
-    assert.ok(masked.includes("统一社会信用代码：[91350211*********8]"));
+    assert.ok(Object.keys(map).every(token=>token.startsWith("「")&&token.endsWith("」")));
+    assert.ok(Object.keys(map).every(token=>!/-\d+」$/.test(token)),"no -1 suffix in masks");
+    assert.ok(masked.includes("姓名：「李*」"));
+    assert.ok(masked.includes("姓名：「李**」"));
+    assert.ok(masked.includes("姓名：「李***」"));
+    assert.ok(masked.includes("机构：「深圳星*司」"));
+    assert.ok(masked.includes("机构：「星*司」"));
+    assert.ok(masked.includes("手机：「1380013****」 手机：「1380013****」"));
+    assert.ok(masked.includes("身份证：「110101************」"));
+    assert.ok(masked.includes("身份证：「110101***********5」"));
+    assert.ok(masked.includes("统一社会信用代码：「91350211**********」"));
+    assert.ok(masked.includes("统一社会信用代码：「91350211*********8」"));
     assert.ok(masked.includes("合同编号：HT-2026-0001"));
     assert.equal(await fs.readFile(path.join(source,"unrelated.txt"),"utf8"),ordinary);
     const second=await job.process();
@@ -132,7 +132,7 @@ test("directory-wide grouping makes two short Markdown files exactly one chunk",
   assert.ok(longChunks.every(chunk=>chunk.length<=20000),"each LLM chunk must stay within 20,000 characters");
 });
 
-test("existing .gitignore keeps rules and gets the map exclusion exactly once",async()=>{
+test("existing .gitignore stays untouched with sibling JSON",async()=>{
   const tmp=await fs.mkdtemp(path.join(os.tmpdir(),"markdown-ignore-"));
   try {
     const source=path.join(tmp,"cases");
@@ -149,10 +149,9 @@ test("existing .gitignore keeps rules and gets the map exclusion exactly once",a
     if(result.action!=="anonymized")throw new Error("Expected anonymization");
     assert.equal(result.chunkCount,1);
     const ignore=await fs.readFile(path.join(source,".gitignore"),"utf8");
-    assert.equal(ignore,existing+".anonymize-map.json\r\n");
-    assert.equal(ignore.match(/\.anonymize-map\.json/g)?.length,1);
-    assert.ok(await exists(path.join(source,".anonymize-map.json")));
-    assert.deepEqual((await fs.readdir(source)).sort(),[".gitignore","a.md",".anonymize-map.json"].sort());
+    assert.equal(ignore,existing);
+    assert.ok(await exists(path.join(tmp,"cases.json")));
+    assert.deepEqual((await fs.readdir(source)).sort(),[".gitignore","a.md"].sort());
   }finally {await fs.rm(tmp,{force:true,recursive:true});}
 });
 
@@ -169,7 +168,7 @@ test("rollback preserves preexisting .gitignore on map write failure",async()=>{
     const injected:typeof port={
       ...port,
       async writeFile(filepath,data,options) {
-        if(filepath===path.join(source,".anonymize-map.json"))throw new Error("simulated map write error");
+        if(filepath===path.join(tmp,"cases.json"))throw new Error("simulated map write error");
         return port.writeFile(filepath,data,options);
       }
     };
@@ -187,14 +186,14 @@ test("rollback preserves preexisting .gitignore on map write failure",async()=>{
 test("longest-match single-pass mapping is reversible",()=>{
   const mapping=makeMapping({PER:["李明"],ORG:["深圳星辰科技有限公司","星辰科技"],NUM:["110101199001012345","HT-2026-0001"]});
   const rendered=anonymizeText("李明，深圳星辰科技有限公司，110101199001012345，HT-2026-0001",mapping);
-  assert.match(rendered,/\[李\*\]/);
-  assert.match(rendered,/\[深圳星\*司\]/);
+  assert.match(rendered,/\「李\*\」/);
+  assert.match(rendered,/\「深圳星\*司\」/);
   assert.ok(rendered.includes("110101************"));
   assert.ok(rendered.includes("HT-2026-0001"));
-  assert.doesNotMatch(rendered,/\[NUM_\d+\]/);
+  assert.doesNotMatch(rendered,/「NUM_\d+」/);
   assert.ok(!Object.values(mapping.placeholderToReal).includes("HT-2026-0001"));
   assert.ok(!rendered.includes("星辰科技"));
-  assert.equal(mapping.placeholderToReal["[李*]"],"李明");
+  assert.equal(mapping.placeholderToReal["「李*」"],"李明");
 });
 test("recursive anonymization then next run restores Markdown only and deletes hidden map",async()=>{
   const tmp=await fs.mkdtemp(path.join(os.tmpdir(),"markdown-anon-test-"));
@@ -205,7 +204,7 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     const originalCase=await fs.readFile("tests/fixtures/case.md","utf8");
     const originalReference=await fs.readFile("tests/fixtures/nested/reference.markdown","utf8");
     const hiddenOriginal="李明、深圳星辰科技有限公司\n";
-    const textOriginal="李明 [李*] 110101************";
+    const textOriginal="李明 「李*」 110101************";
     await fs.copyFile("tests/fixtures/case.md",path.join(source,"case.md"));
     await fs.copyFile("tests/fixtures/nested/reference.markdown",path.join(source,"nested/reference.markdown"));
     await fs.writeFile(path.join(source,".private/hidden.markdown"),hiddenOriginal);
@@ -220,30 +219,30 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     if(first.action!=="anonymized")throw new Error("Expected anonymization");
     assert.equal(first.fileCount,3);
     assert.equal(first.outputDir,source);
-    assert.equal(first.mapPath,path.join(source,".anonymize-map.json"));
+    assert.equal(first.mapPath,path.join(tmp,"cases.json"));
     assert.equal(first.chunkCount,1,"short Markdown files share one global chunk");
     assert.equal(calls,1,"only one local LLM extraction request");
     const map=JSON.parse(await fs.readFile(first.mapPath,"utf8"));
-    assert.equal(map["[李*]"],"李明");
+    assert.equal(map["「李*」"],"李明");
     assert.ok(Object.values(map).includes("13800138000"));
     assert.ok(Object.values(map).includes("91350211M000100Y43"));
     assert.ok(!Object.values(map).includes("HT-2026-0001"));
     for(const file of ["case.md","nested/reference.markdown",".private/hidden.markdown"]) {
       const output=await fs.readFile(path.join(source,file),"utf8");
       assert.ok(!output.includes("李明"),"person was not masked in "+file);
-      assert.ok(output.includes("[李*]"),"person mask missing in "+file);
+      assert.ok(output.includes("「李*」"),"person mask missing in "+file);
       if(file!==" .private/hidden.markdown".trim()) {
-        assert.ok(output.includes("[110101************]"),"bracketed ID mask missing in "+file);
-        assert.ok(output.includes("[1380013****]"),"bracketed phone mask missing in "+file);
-        assert.ok(output.includes("[91350211**********]"),"bracketed USCC mask missing in "+file);
+        assert.ok(output.includes("「110101************」"),"bracketed ID mask missing in "+file);
+        assert.ok(output.includes("「1380013****」"),"bracketed phone mask missing in "+file);
+        assert.ok(output.includes("「91350211**********」"),"bracketed USCC mask missing in "+file);
       }
     }
     assert.equal(await fs.readFile(path.join(source,"notes.txt"),"utf8"),textOriginal,
       "non-Markdown files must never be anonymized");
-    assert.ok(await exists(path.join(source,".anonymize-map.json")));
+    assert.ok(await exists(path.join(tmp,"cases.json")));
     assert.deepEqual((await fs.readdir(source)).sort(),
-      [".anonymize-map.json",".gitignore",".private","case.md","nested","notes.txt"].sort());
-    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
+      [".private","case.md","nested","notes.txt"].sort());
+    assert.ok(!await exists(path.join(source,".gitignore")));
     assert.deepEqual((await fs.readdir(path.join(source,"nested"))),["reference.markdown"]);
     if(process.platform!=="win32")
       assert.equal((await fs.stat(first.mapPath)).mode & 0o777,0o600);
@@ -261,7 +260,7 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     assert.equal(JSON.stringify(second).includes('"counts"'),false);
     assert.equal(JSON.stringify(second).includes('"chunkCount"'),false);
     assert.ok(!await exists(first.mapPath),"hidden map must be deleted after successful restoration");
-    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
+    assert.ok(!await exists(path.join(source,".gitignore")));
     assert.equal(calls,1,"restoration must not call the local model");
     assert.equal(verifyCalls,1,"restoration must not probe the LLM server");
     assert.ok(!await exists(path.join(tmp,"cases_脱敏后")));
@@ -281,12 +280,12 @@ test("restoration failure rolls back masked Markdown and retains the map for ret
   try {
     const source=path.join(tmp,"cases");
     await fs.mkdir(source);
-    const maskedA="[李*] 在第一份文档";
-    const maskedB="[李*] 在第二份文档";
+    const maskedA="「李*」 在第一份文档";
+    const maskedB="「李*」 在第二份文档";
     await fs.writeFile(path.join(source,"a.md"),maskedA);
     await fs.writeFile(path.join(source,"b.markdown"),maskedB);
-    const mapPath=path.join(source,".anonymize-map.json");
-    await fs.writeFile(mapPath,JSON.stringify({"[李*]":"李明"}));
+    const mapPath=path.join(tmp,"cases.json");
+    await fs.writeFile(mapPath,JSON.stringify({"「李*」":"李明"}));
     const actual=createNodeFilePort();
     let failOnce=true;
     const port={
@@ -323,19 +322,19 @@ test("invalid map is rejected without modifying Markdown",async()=>{
   try {
     const source=path.join(tmp,"cases");
     await fs.mkdir(source);
-    const original="[李*]";
+    const original="「李*」";
     await fs.writeFile(path.join(source,"a.md"),original);
-    await fs.writeFile(path.join(source,".anonymize-map.json"),"{invalid");
+    await fs.writeFile(path.join(tmp,"cases.json"),"{invalid");
     const neverCall:EntityExtractor={
       async verifyCotBudgetControl(){throw new Error("LLM must not be called");},
       async extractEntitiesFromChunk(){throw new Error("LLM must not be called");}
     };
     await assert.rejects(
       ()=>new MarkdownDirectoryAnonymizer(source,neverCall,createNodeFilePort()).process(),
-      /Invalid \.anonymize-map\.json/
+      /Invalid mapping JSON/
     );
     assert.equal(await fs.readFile(path.join(source,"a.md"),"utf8"),original);
-    assert.ok(await exists(path.join(source,".anonymize-map.json")));
+    assert.ok(await exists(path.join(tmp,"cases.json")));
   }finally {await fs.rm(tmp,{recursive:true,force:true});}
 });
 
@@ -352,7 +351,7 @@ test("failed extraction leaves source and map untouched",async()=>{
     };
     await assert.rejects(()=>new MarkdownDirectoryAnonymizer(source,broken,createNodeFilePort()).process(),/bad JSON/);
     assert.equal(await fs.readFile(path.join(source,"case.md"),"utf8"),text);
-    assert.ok(!await exists(path.join(source,".anonymize-map.json")));
+    assert.ok(!await exists(path.join(tmp,"cases.json")));
     assert.deepEqual(await fs.readdir(source),["case.md"]);
     assert.ok(!await exists(path.join(source,".gitignore")));
   }finally {await fs.rm(tmp,{force:true,recursive:true});}
@@ -391,7 +390,7 @@ test("rename failure restores earlier originals and removes root map and plainte
     assert.equal(await fs.readFile(path.join(source,"b.md"),"utf8"),originalB);
     assert.deepEqual((await fs.readdir(source)).sort(),["a.md","b.md"]);
     assert.ok(!await exists(path.join(source,".gitignore")));
-    assert.ok(!await exists(path.join(source,"anonymize-map.json")));
+    assert.ok(!await exists(path.join(tmp,"cases.json")));
   } finally {await fs.rm(tmp,{force:true,recursive:true});}
 });
 

@@ -32,21 +32,21 @@ async function main():Promise<void> {
     assert.ok(result.counts.PER>=1 && result.counts.ORG>=1 && result.counts.NUM>=1);
     assert.equal(result.outputDir,source);
     assert.equal(result.action,"anonymized");
-    assert.equal(result.mapPath,path.join(source,".anonymize-map.json"));
-    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
+    assert.equal(result.mapPath,path.join(dir,"cases.json"));
+    await assert.rejects(()=>fs.stat(path.join(source,".gitignore")),/ENOENT/);
     const output=await fs.readFile(path.join(source,"case.md"),"utf8");
-    assert.ok(output.includes("[李*]"),"Expected Chinese person mask");
-    assert.ok(output.includes("[深圳星*司]"),"Expected city-aware Chinese organization mask");
-    assert.ok(output.includes("[1380013****]"),"Expected bracketed mobile mask");
+    assert.ok(output.includes("「李*」"),"Expected Chinese person mask");
+    assert.ok(output.includes("「深圳星*司」"),"Expected city-aware Chinese organization mask");
+    assert.ok(output.includes("「1380013****」"),"Expected bracketed mobile mask");
     assert.ok(output.includes("HT-2026-0001"),"Generic contract ID must remain unchanged");
     for(const raw of ["李明","深圳星辰科技有限公司","13800138000"])
       assert.ok(!output.includes(raw),"Unmasked entity "+raw);
-    assert.doesNotMatch(output,/\[NUM_\d+\]/);
+    assert.doesNotMatch(output,/「NUM_\d+」/);
     const mapping=JSON.parse(await fs.readFile(result.mapPath,"utf8")) as Record<string,string>;
     for(const raw of ["李明","深圳星辰科技有限公司","13800138000"])
       assert.ok(Object.values(mapping).includes(raw),"Missing reversible original: "+raw);
     assert.ok(!Object.values(mapping).includes("HT-2026-0001"));
-    assert.equal(mapping["[1380013****]"],"13800138000");
+    assert.equal(mapping["「1380013****」"],"13800138000");
     const restored=await job.process();
     assert.equal(restored.action,"restored");
     assert.ok(!("counts" in restored) && !("chunkCount" in restored));
