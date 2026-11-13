@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T09:05:44.861Z
-- GitHub run: 43397904925
-- Commit SHA: b968624ce2275009aba5fa96bbb2ad28e665dcd5
+- CI 时间（UTC）: 2026-11-13T09:28:32.638Z
+- GitHub run: 43401278182
+- Commit SHA: 4d39e0f676f0cedb19328f09912e2f1e4bbe8fce
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
