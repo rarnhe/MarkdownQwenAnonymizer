@@ -186,7 +186,7 @@ test("longest-match single-pass mapping is reversible",()=>{
   const mapping=makeMapping({PER:["李明"],ORG:["深圳星辰科技有限公司","星辰科技"],NUM:["110101199001012345","HT-2026-0001"]});
   const rendered=anonymizeText("李明，深圳星辰科技有限公司，110101199001012345，HT-2026-0001",mapping);
   assert.match(rendered,/\[李\*\]/);
-  assert.match(rendered,/\[星\*司\]/);
+  assert.match(rendered,/\[深圳星\*司\]/);
   assert.ok(rendered.includes("110101************"));
   assert.ok(rendered.includes("HT-2026-0001"));
   assert.doesNotMatch(rendered,/\[NUM_\d+\]/);

@@ -31,13 +31,15 @@ export class MarkdownDirectoryAnonymizer {
   private async getAllMarkdownFiles(dir:string):Promise<string[]> {
     const entries=(await this.fs.readdir(dir)).sort((a,b)=>a.name.localeCompare(b.name));
     const files:string[]=[];
+    // Direct Markdown files precede nested directories, preserving natural
+    // parent-first document order when assigning first-mention star masks.
     for(const entry of entries) {
-      if(entry.isDirectory) {
-        if(entry.name===".git" || entry.name==="node_modules")continue;
-        files.push(...await this.getAllMarkdownFiles(path.join(dir,entry.name)));
-      } else if(entry.isFile && /\.(md|markdown)$/i.test(entry.name)) {
+      if(entry.isFile && /\.(md|markdown)$/i.test(entry.name))
         files.push(path.join(dir,entry.name));
-      }
+    }
+    for(const entry of entries) {
+      if(!entry.isDirectory || entry.name===".git" || entry.name==="node_modules")continue;
+      files.push(...await this.getAllMarkdownFiles(path.join(dir,entry.name)));
     }
     return files;
   }
