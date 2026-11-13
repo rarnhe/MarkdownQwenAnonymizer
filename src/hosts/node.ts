@@ -5,7 +5,7 @@ import {LlamaServerClient} from "../adapters/llama-server";
 async function main():Promise<void> {
   const [input,...extra]=process.argv.slice(2);
   if(!input || extra.length) {
-    console.error("Usage: npm run anonymize -- <markdown-directory>");
+    console.error("Usage: npx tsx ./src/hosts/node.ts <markdown-directory>");
     process.exitCode=2;
     return;
   }
@@ -14,7 +14,7 @@ async function main():Promise<void> {
     const job=new MarkdownDirectoryAnonymizer(input,new LlamaServerClient(url),createNodeFilePort());
     const result=await job.process();
     console.log(JSON.stringify(result,null,2));
-    console.log("WARNING: source Markdown files were overwritten IN PLACE. anonymize-map.json contains plaintext identifiers: do not commit or share.");
+    console.log("WARNING: Markdown files were overwritten IN PLACE. Local .gitignore excludes anonymize-map.json from normal git add; it contains plaintext identifiers. Never share or force-add it.");
   } catch(error) {
     console.error("Anonymization failed:",error);
     process.exitCode=1;

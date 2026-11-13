@@ -4,7 +4,6 @@
   "private": true,
   "description": "Offline local llama-server GBNF Markdown anonymizer",
   "scripts": {
-    "anonymize": "tsx src/hosts/node.ts",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test tests/*.test.ts",
     "test:live": "tsx tests/run-live.ts",

@@ -18,3 +18,15 @@ export function createChunks(text:string,maxChunkChars=20000,overlapChars=50):st
   }
   return chunks;
 }
+
+/**
+ * Directory-wide extraction stream: small Markdown documents share one chunk.
+ * 20,000 characters and a 50-character overlap apply to the combined text,
+ * while original files remain separate for their in-place replacements.
+ */
+export function createDocumentChunks(
+  documents: readonly string[], maxChunkChars=20000, overlapChars=50
+):string[] {
+  const separator="\n\n--- 文档分隔 ---\n\n";
+  return createChunks(documents.filter(text=>text.length>0).join(separator),maxChunkChars,overlapChars);
+}

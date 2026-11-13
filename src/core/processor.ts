@@ -3,10 +3,19 @@ import {randomUUID} from "node:crypto";
 import type {FilePort} from "../ports/file-port";
 import type {EntityExtractor,EntityMapping} from "./types";
 import {GlobalEntityStore} from "./store";
-import {createChunks} from "./chunks";
+import {createDocumentChunks} from "./chunks";
 import {makeMapping,anonymizeText} from "./mapping";
 
 const MAP_FILENAME="anonymize-map.json";
+const IGNORE_FILENAME=".gitignore";
+const IGNORE_RULE="anonymize-map.json";
+
+/** Keep existing .gitignore patterns and its newline convention intact. */
+function appendIgnoreRule(original:string):string {
+  if(original.split(/\r?\n/).some(line=>line.trim()===IGNORE_RULE))return original;
+  const newline=original.includes("\r\n")?"\r\n":"\n";
+  return original+(original && !original.endsWith("\n")?newline:"")+IGNORE_RULE+newline;
+}
 export interface AnonymizeResult {
   /** Original directory, now updated in place (retained for CLI compatibility). */
   outputDir:string;
@@ -34,6 +43,17 @@ export class MarkdownDirectoryAnonymizer {
     }
     return files;
   }
+  private async getIgnoreState():Promise<{exists:boolean;original:string;updated:string;mode:number}> {
+    const ignorePath=path.join(this.srcDirPath,IGNORE_FILENAME);
+    try {
+      const original=await this.fs.readFile(ignorePath,"utf8");
+      return {exists:true,original,updated:appendIgnoreRule(original),
+        mode:(await this.fs.stat(ignorePath)).mode};
+    } catch(error) {
+      if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+      return {exists:false,original:"",updated:IGNORE_RULE+"\n",mode:0o644};
+    }
+  }
   private async ensureNoExistingMap(mapPath:string):Promise<void> {
     try {
       await this.fs.readFile(mapPath,"utf8");
@@ -47,6 +67,8 @@ export class MarkdownDirectoryAnonymizer {
     const mapPath=path.join(this.srcDirPath,MAP_FILENAME);
     // Never clobber a prior reversible dictionary or reprocess masked source.
     await this.ensureNoExistingMap(mapPath);
+    const ignoreState=await this.getIgnoreState();
+    const ignoreNeedsUpdate=ignoreState.updated!==ignoreState.original;
     const mdFiles=await this.getAllMarkdownFiles(this.srcDirPath);
     if(!mdFiles.length)throw new Error("No .md or .markdown files found");
 
@@ -60,11 +82,10 @@ export class MarkdownDirectoryAnonymizer {
 
     // Finish all extractions before mutating source Markdown; fail closed on server errors.
     for(const file of contents)store.applyRegexFallback(file.content);
-    for(const file of contents) {
-      for(const chunk of createChunks(file.content,20000,50)) {
-        store.addEntities(await this.client.extractEntitiesFromChunk(chunk,controllable));
-        chunkCount++;
-      }
+    // Chunk the combined directory text once, not one tiny chunk per file.
+    for(const chunk of createDocumentChunks(contents.map(file=>file.content),20000,50)) {
+      store.addEntities(await this.client.extractEntitiesFromChunk(chunk,controllable));
+      chunkCount++;
     }
     const categories=store.exportSortedCategories();
     const reserved=new Set<string>();
@@ -84,7 +105,11 @@ export class MarkdownDirectoryAnonymizer {
       };
     });
     const prepared=contents.map(file=>anonymizeText(file.content,mapping));
+    const ignorePath=path.join(this.srcDirPath,IGNORE_FILENAME);
+    const ignorePending=path.join(this.srcDirPath,".anonymize-"+txid+"-ignore.new");
+    const ignoreBackup=path.join(this.srcDirPath,".anonymize-"+txid+"-ignore.bak");
     const tempPaths:string[]=[];
+    let ignoreInstalled=false;
     let mapCreated=false;
     const installed:StagedFile[]=[];
     try {
@@ -97,6 +122,18 @@ export class MarkdownDirectoryAnonymizer {
         await this.fs.chmod(item.pending,item.mode);
         tempPaths.push(item.backup);
         await this.fs.writeFile(item.backup,item.content,{flag:"wx",mode:0o600});
+      }
+      // Add the local ignore rule BEFORE writing plaintext identifiers.
+      if(ignoreNeedsUpdate) {
+        tempPaths.push(ignorePending);
+        await this.fs.writeFile(ignorePending,ignoreState.updated,{flag:"wx",mode:0o600});
+        await this.fs.chmod(ignorePending,ignoreState.mode);
+        if(ignoreState.exists) {
+          tempPaths.push(ignoreBackup);
+          await this.fs.writeFile(ignoreBackup,ignoreState.original,{flag:"wx",mode:0o600});
+        }
+        await this.fs.rename(ignorePending,ignorePath);
+        ignoreInstalled=true;
       }
       // The reversible map must exist before any source replacement happens.
       await this.fs.writeFile(mapPath,JSON.stringify(mapping.placeholderToReal,null,2)+"\n",
@@ -113,6 +150,13 @@ export class MarkdownDirectoryAnonymizer {
         try {await this.fs.rename(item.backup,item.original);}
         catch(e) {restoreErrors.push(item.original+": "+String(e));}
       }
+      // Restore an existing .gitignore, or remove the one created by this run.
+      if(ignoreInstalled) {
+        try {
+          if(ignoreState.exists)await this.fs.rename(ignoreBackup,ignorePath);
+          else await this.fs.unlink(ignorePath);
+        } catch(e) {restoreErrors.push(ignorePath+": "+String(e));}
+      }
       if(mapCreated && restoreErrors.length===0) {
         try {await this.fs.unlink(mapPath);}
         catch(e) {restoreErrors.push("mapping cleanup: "+String(e));}
@@ -122,14 +166,19 @@ export class MarkdownDirectoryAnonymizer {
         await Promise.allSettled(tempPaths.map(p=>this.fs.unlink(p)));
       } else {
         // Pending files can be discarded; original backups must remain available.
-        await Promise.allSettled(staged.map(item=>this.fs.unlink(item.pending)));
+        await Promise.allSettled([...staged.map(item=>item.pending),ignorePending]
+          .map(p=>this.fs.unlink(p)));
       }
       const details=restoreErrors.length ? "; manual recovery needed: "+restoreErrors.join("; ") : "";
       throw new Error("In-place anonymization aborted: "+String(error)+details);
     }
     // A successful transaction must not leave recoverable plaintext backups behind.
-    const cleanup=await Promise.allSettled(staged.map(item=>this.fs.unlink(item.backup)));
-    const failedCleanup=cleanup.flatMap((value,i)=>value.status==="rejected" ? [staged[i].backup]:[]);
+    const cleanupPaths=[
+      ...staged.map(item=>item.backup),
+      ...(ignoreNeedsUpdate && ignoreState.exists?[ignoreBackup]:[])
+    ];
+    const cleanup=await Promise.allSettled(cleanupPaths.map(p=>this.fs.unlink(p)));
+    const failedCleanup=cleanup.flatMap((value,i)=>value.status==="rejected" ? [cleanupPaths[i]]:[]);
     if(failedCleanup.length)throw new Error("Anonymization succeeded but plaintext backups could not be removed: "+failedCleanup.join(", "));
     return {outputDir:this.srcDirPath,mapPath,fileCount:contents.length,chunkCount,
       counts:{PER:categories.PER.length,ORG:categories.ORG.length,
