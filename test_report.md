@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T03:41:07.721Z
-- GitHub run: 43360157910
-- Commit SHA: df8e0ab2d2ab056b9b5a7e6c96ef25838a53da0b
+- CI 时间（UTC）: 2026-11-13T03:47:45.641Z
+- GitHub run: 43360810521
+- Commit SHA: 803aafd1948414261b657319dddcc95de5d86ab2
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -13,21 +13,11 @@
 | Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
 | Qwen GGUF download | **SUCCESS** | tests/output/download.log |
 | Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
-| Real Qwen GGUF integration | **FAILURE** | tests/output/live.log |
+| Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
 
 ## 失败项
 
-### Real Qwen GGUF integration
-
-~~~text
-
-> markdown-qwen-anonymizer@1.0.0 test:live
-> tsx tests/run-live.ts
-
-[DOMException [TimeoutError]: The operation was aborted due to timeout]
-
-~~~
-
+- 无，所有必须阶段成功。
 
 ## 模型与隐私说明
 
