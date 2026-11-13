@@ -125,7 +125,7 @@ export class MarkdownDirectoryAnonymizer {
         await Promise.allSettled(staged.map(item=>this.fs.unlink(item.pending)));
       }
       const details=restoreErrors.length ? "; manual recovery needed: "+restoreErrors.join("; ") : "";
-      throw new Error("In-place anonymization aborted: "+String(error)+details,{cause:error});
+      throw new Error("In-place anonymization aborted: "+String(error)+details);
     }
     // A successful transaction must not leave recoverable plaintext backups behind.
     const cleanup=await Promise.allSettled(staged.map(item=>this.fs.unlink(item.backup)));
