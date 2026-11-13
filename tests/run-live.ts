@@ -31,14 +31,19 @@ async function main():Promise<void> {
     assert.ok(output.includes("123-45-6789"),"US SSN should remain untouched");
     assert.ok(output.includes("60000万元") && output.includes("3000元"),"Monetary amounts should remain untouched");
     assert.ok(output.includes("[星*司]"),"Expected Chinese organization mask");
-    assert.match(output,/\[NUM_\d+\]/);
+    assert.ok(output.includes("HT-2026-0001"),"Contract number should remain unchanged");
+    assert.doesNotMatch(output,/\[NUM_\d+\]/,"No generic NUM markers may be generated");
     for(const date of ["2025年","1970年1月1日","2026.09.08"])assert.ok(output.includes(date),"Date was modified: "+date);
-    const mapping=JSON.parse(await fs.readFile(path.join(result.outputDir,".anonymize_map.json"),"utf8")) as Record<string,string>;
+    assert.equal(result.outputDir,source);
+    const mapping=JSON.parse(await fs.readFile(path.join(source,"anonymize-map.json"),"utf8")) as Record<string,string>;
+    assert.equal(result.mapPath,path.join(source,"anonymize-map.json"));
     assert.ok(Object.values(mapping).includes("李明"));
     assert.ok(Object.values(mapping).includes("13800138000"));
     assert.ok(Object.values(mapping).includes("110101199001012345"));
     assert.ok(Object.values(mapping).includes("91350211M000100Y43"));
     assert.ok(!Object.values(mapping).includes("123-45-6789"));
+    assert.ok(!Object.values(mapping).includes("HT-2026-0001"));
+    await assert.rejects(()=>fs.stat(source+"_脱敏后"),/ENOENT/);
     console.log("PASS REAL GGUF: one Markdown, categories PER/ORG/NUM and reversible mapping");
     console.log(JSON.stringify({files:result.fileCount,chunks:result.chunkCount,counts:result.counts}));
   }finally {await fs.rm(dir,{force:true,recursive:true});}

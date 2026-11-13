@@ -81,14 +81,16 @@ test("LLM-extracted time strings are excluded and date spans protect year substr
   const extracted=store.exportSortedCategories().NUM;
   for(const value of ["2025年","1970年1月1日","2026.09.08"])
     assert.ok(!extracted.includes(value),"date was extracted: "+value);
-  assert.ok(extracted.includes("2025"));
+  assert.deepEqual(extracted,[],"non-identity codes and numbers are ignored");
   const map=makeMapping(categories([],[],extracted));
   const original="2025年签订，出生于1970年1月1日，归档于2026.09.08。编号2025，合同HT-2025-007。";
   const anonymized=anonymizeText(original,map);
   for(const date of ["2025年","1970年1月1日","2026.09.08"])
     assert.ok(anonymized.includes(date),"date changed: "+date);
-  assert.ok(anonymized.includes("编号[NUM_"));
-  assert.ok(!anonymized.includes("合同HT-2025-007"));
+  assert.ok(anonymized.includes("编号2025"));
+  assert.ok(anonymized.includes("合同HT-2025-007"));
+  assert.doesNotMatch(anonymized,/\[NUM_\d+\]/);
+
 });
 test("recursive Markdown uses a single reversible dictionary and leaves dates intact",async()=>{
   const tmp=await fs.mkdtemp(path.join(os.tmpdir(),"markdown-masking-"));
@@ -112,13 +114,15 @@ test("recursive Markdown uses a single reversible dictionary and leaves dates in
     assert.equal(result.fileCount,2);
     const a=await fs.readFile(path.join(result.outputDir,"one.md"),"utf8");
     const b=await fs.readFile(path.join(result.outputDir,"nested","two.markdown"),"utf8");
-    const mapping=JSON.parse(await fs.readFile(path.join(result.outputDir,".anonymize_map.json"),"utf8")) as Record<string,string>;
+    const mapping=JSON.parse(await fs.readFile(path.join(source,"anonymize-map.json"),"utf8")) as Record<string,string>;
     assert.equal(a,"[许*茹]、[何*]、[何*-1]。[腾*司]。2025年，1970年1月1日。\n");
-    assert.equal(b,"下简称[腾*司-1]；[何*-1]。2026.09.08。编号：[NUM_001]。\n");
+    assert.equal(b,"下简称[腾*司-1]；[何*-1]。2026.09.08。编号：HT-2025-007。\n");
     assert.equal(mapping["[何*-1]"],"何瑞");
     assert.equal(mapping["[腾*司-1]"],"腾讯公司");
     assert.ok(!Object.values(mapping).includes("2025年"));
     assert.ok(!Object.values(mapping).includes("2026.09.08"));
+    assert.ok(!Object.values(mapping).includes("HT-2025-007"));
+    assert.equal(result.outputDir,source);
   } finally {await fs.rm(tmp,{recursive:true,force:true});}
 });
 
@@ -136,7 +140,7 @@ test("Chinese ID, mobile and unified social credit code receive format-preservin
   assert.equal(map.realToPlaceholder[id],"429114************");
   assert.equal(map.realToPlaceholder[phone],"1348579****");
   assert.equal(map.realToPlaceholder[uscc],"91440300**********");
-  assert.equal(map.realToPlaceholder["HT-2026-0001"],"[NUM_001]");
+  assert.equal(map.realToPlaceholder["HT-2026-0001"],undefined);
   assert.equal(map.placeholderToReal["429114************"],id);
 });
 test("same-area ID and same-prefix USCC reveal only the final check character on collision",()=>{
@@ -165,7 +169,7 @@ test("US SSN and monetary amounts are ignored even when returned by the model",(
   store.applyRegexFallback(source);
   store.addEntities({codes:["60000万元","3000元","人民币5000元","60000","3000","5000","123-45-6789","HT-2026-0001"]});
   const data=store.exportSortedCategories();
-  assert.deepEqual(data.NUM,["HT-2026-0001"]);
+  assert.deepEqual(data.NUM,[]);
   assert.ok(!JSON.stringify(data).includes("123-45-6789"));
 
   const map=makeMapping(categories([],[],data.NUM));
@@ -174,5 +178,6 @@ test("US SSN and monetary amounts are ignored even when returned by the model",(
   assert.ok(anonymized.includes("3000元"));
   assert.ok(anonymized.includes("人民币5000元"));
   assert.ok(anonymized.includes("123-45-6789"));
-  assert.ok(anonymized.includes("[NUM_001]"));
+  assert.ok(anonymized.includes("HT-2026-0001"));
+  assert.doesNotMatch(anonymized,/\[NUM_\d+\]/);
 });
