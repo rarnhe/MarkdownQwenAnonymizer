@@ -164,7 +164,7 @@ test("recursive anonymization then next run restores Markdown only and deletes h
     }
     assert.equal(await fs.readFile(path.join(source,"notes.txt"),"utf8"),textOriginal,
       "non-Markdown files must never be anonymized");
-    assert.ok(!await exists(path.join(source,".anonymize-map.json")));
+    assert.ok(await exists(path.join(source,".anonymize-map.json")));
     assert.deepEqual((await fs.readdir(source)).sort(),
       [".anonymize-map.json",".gitignore",".private","case.md","nested","notes.txt"].sort());
     assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
@@ -254,7 +254,7 @@ test("invalid map is rejected without modifying Markdown",async()=>{
     };
     await assert.rejects(
       ()=>new MarkdownDirectoryAnonymizer(source,neverCall,createNodeFilePort()).process(),
-      /Invalid \\.anonymize-map\\.json/
+      /Invalid \.anonymize-map\.json/
     );
     assert.equal(await fs.readFile(path.join(source,"a.md"),"utf8"),original);
     assert.ok(await exists(path.join(source,".anonymize-map.json")));
