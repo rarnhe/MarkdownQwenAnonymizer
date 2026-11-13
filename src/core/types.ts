@@ -12,4 +12,11 @@ export interface EntityExtractor {
   verifyCotBudgetControl(): Promise<boolean>;
   extractEntitiesFromChunk(text: string, cotControllable: boolean): Promise<ExtractedEntities>;
 }
-export interface Categories { PER:string[]; ORG:string[]; NUM:string[]; }
+export interface Categories {
+  PER:string[];
+  ORG:string[];
+  NUM:string[];
+  ID?:string[];
+  PHONE?:string[];
+  USCC?:string[];
+}

@@ -23,7 +23,7 @@ test("GBNF requires all four JSON arrays",()=>{
     assert.ok(ENTITY_GBNF_GRAMMAR.includes(field));
   assert.match(ENTITY_GBNF_GRAMMAR,/root ::=/);
 });
-test("cross-chunk deduplication, ID, mobile, credit code and SSN all map to NUM",()=>{
+test("cross-chunk deduplication classifies Chinese ID, mobile, USCC and ignores US SSN",()=>{
   const store=new GlobalEntityStore();
   store.addEntities(sample);
   store.addEntities(sample);
@@ -31,9 +31,13 @@ test("cross-chunk deduplication, ID, mobile, credit code and SSN all map to NUM"
   const data=store.exportSortedCategories();
   assert.deepEqual(data.PER,["李明"]);
   assert.deepEqual(data.ORG,["深圳星辰科技有限公司"]);
-  for(const id of ["110101199001012345","13800138000","123-45-6789","HT-2026-0001","91350211M000100Y43"])
-    assert.ok(data.NUM.includes(id),"missing NUM: "+id);
-  assert.equal(new Set(data.NUM).size,data.NUM.length);
+  assert.ok(data.ID?.includes("110101199001012345"),"missing Chinese ID");
+  assert.ok(data.PHONE?.includes("13800138000"),"missing mobile number");
+  assert.ok(data.USCC?.includes("91350211M000100Y43"),"missing unified social credit code");
+  assert.ok(data.NUM.includes("HT-2026-0001"),"missing generic contract code");
+  assert.ok(!JSON.stringify(data).includes("123-45-6789"),"US SSN must be ignored");
+  assert.equal(new Set([...data.NUM,...(data.ID??[]),...(data.PHONE??[]),...(data.USCC??[])]).size,
+    data.NUM.length+(data.ID?.length??0)+(data.PHONE?.length??0)+(data.USCC?.length??0));
 });
 test("overlap chunker makes forward progress and preserves boundaries",()=>{
   const text="first\n"+"a".repeat(300)+"\nlast";
@@ -45,10 +49,11 @@ test("overlap chunker makes forward progress and preserves boundaries",()=>{
   assert.throws(()=>createChunks(text,10,10));
 });
 test("longest-match single-pass mapping is reversible",()=>{
-  const mapping=makeMapping({PER:["李明"],ORG:["深圳星辰科技有限公司","星辰科技"],NUM:["110101199001012345"]});
-  const rendered=anonymizeText("李明，深圳星辰科技有限公司，110101199001012345",mapping);
+  const mapping=makeMapping({PER:["李明"],ORG:["深圳星辰科技有限公司","星辰科技"],NUM:["110101199001012345","HT-2026-0001"]});
+  const rendered=anonymizeText("李明，深圳星辰科技有限公司，110101199001012345，HT-2026-0001",mapping);
   assert.match(rendered,/\[李\*\]/);
   assert.match(rendered,/\[星\*司\]/);
+  assert.ok(rendered.includes("110101************"));
   assert.match(rendered,/\[NUM_001\]/);
   assert.ok(!rendered.includes("星辰科技"));
   assert.equal(mapping.placeholderToReal["[李*]"],"李明");
@@ -73,8 +78,12 @@ test("real recursive filesystem output retains tree, uses one global map, never 
     assert.equal(map["[李*]"],"李明");
     for(const file of ["case.md","nested/reference.markdown"]) {
       const output=await fs.readFile(path.join(first.outputDir,file),"utf8");
-      for(const sensitive of ["李明","深圳星辰科技有限公司","110101199001012345","13800138000","123-45-6789"])
+      for(const sensitive of ["李明","深圳星辰科技有限公司","110101199001012345","13800138000"])
         assert.ok(!output.includes(sensitive),"leaked token in "+file+": "+sensitive);
+      assert.ok(output.includes("123-45-6789"),"US SSN should remain untouched");
+      assert.ok(output.includes("110101************"));
+      assert.ok(output.includes("1380013****"));
+      assert.ok(output.includes("91350211**********"));
       assert.match(output,/\[李\*\]/);
       assert.match(output,/\[星\*司\]/);
     }

@@ -4,6 +4,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import {findDateSpans,isDateOnlyToken} from "../src/core/dates";
+import {findMoneySpans,isMoneyOnlyToken,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode,isUsSocialSecurityNumber} from "../src/core/numbers";
 import {anonymizeText,makeMapping} from "../src/core/mapping";
 import {GlobalEntityStore} from "../src/core/store";
 import {MarkdownDirectoryAnonymizer} from "../src/core/processor";
@@ -119,4 +120,57 @@ test("recursive Markdown uses a single reversible dictionary and leaves dates in
     assert.ok(!Object.values(mapping).includes("2025年"));
     assert.ok(!Object.values(mapping).includes("2026.09.08"));
   } finally {await fs.rm(tmp,{recursive:true,force:true});}
+});
+
+
+test("Chinese ID, mobile and unified social credit code receive format-preserving masks",()=>{
+  const id="429114199001010018";
+  const phone="13485791234";
+  const uscc="91440300MA5F6WXY12";
+  assert.ok(isChineseIdNumber(id));
+  assert.ok(isChineseMobileNumber(phone));
+  assert.ok(isUnifiedSocialCreditCode(uscc));
+  const map=makeMapping(categories([],[],[id,phone,uscc,"HT-2026-0001"]));
+  assert.equal(map.realToPlaceholder[id],"429114************");
+  assert.equal(map.realToPlaceholder[phone],"1348579****");
+  assert.equal(map.realToPlaceholder[uscc],"91440300**********");
+  assert.equal(map.realToPlaceholder["HT-2026-0001"],"[NUM_001]");
+  assert.equal(map.placeholderToReal["429114************"],id);
+});
+test("same-area ID and same-prefix USCC reveal only the final check character on collision",()=>{
+  const ids=["429114199001010018","429114199001010026"];
+  const codes=["91440300MA5F6WXY12","91440300MA5F6WXY13"];
+  const phones=["13485791234","13485795678"];
+  const map=makeMapping(categories([],[],[...ids,...codes,...phones]));
+  assert.equal(map.realToPlaceholder[ids[0]],"429114***********8");
+  assert.equal(map.realToPlaceholder[ids[1]],"429114***********6");
+  assert.equal(map.realToPlaceholder[codes[0]],"91440300*********2");
+  assert.equal(map.realToPlaceholder[codes[1]],"91440300*********3");
+  assert.equal(map.realToPlaceholder[phones[0]],"1348579****-1");
+  assert.equal(map.realToPlaceholder[phones[1]],"1348579****-2");
+  assert.equal(new Set(Object.values(map.realToPlaceholder)).size,Object.keys(map.realToPlaceholder).length);
+  for(const [masked,real] of Object.entries(map.placeholderToReal))
+    assert.equal(map.realToPlaceholder[real],masked);
+});
+test("US SSN and monetary amounts are ignored even when returned by the model",()=>{
+  const source="金额：60000万元、3000元、人民币5000元；SSN：123-45-6789；合同编号：HT-2026-0001。";
+  const spans=findMoneySpans(source);
+  assert.deepEqual(spans.map(span=>source.slice(span.start,span.end)),["60000万元","3000元","人民币5000元"]);
+  for(const amount of ["60000万元","3000元","人民币5000元"])assert.ok(isMoneyOnlyToken(amount));
+  assert.ok(isUsSocialSecurityNumber("123-45-6789"));
+
+  const store=new GlobalEntityStore();
+  store.applyRegexFallback(source);
+  store.addEntities({codes:["60000万元","3000元","人民币5000元","60000","3000","5000","123-45-6789","HT-2026-0001"]});
+  const data=store.exportSortedCategories();
+  assert.deepEqual(data.NUM,["HT-2026-0001"]);
+  assert.ok(!JSON.stringify(data).includes("123-45-6789"));
+
+  const map=makeMapping(categories([],[],data.NUM));
+  const anonymized=anonymizeText(source,map);
+  assert.ok(anonymized.includes("60000万元"));
+  assert.ok(anonymized.includes("3000元"));
+  assert.ok(anonymized.includes("人民币5000元"));
+  assert.ok(anonymized.includes("123-45-6789"));
+  assert.ok(anonymized.includes("[NUM_001]"));
 });

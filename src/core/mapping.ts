@@ -1,11 +1,7 @@
-import {findDateSpans,isDateOnlyToken} from "./dates";
+import {findProtectedNumericSpans,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode} from "./numbers";
+import {isDateOnlyToken} from "./dates";
 import type {Categories,EntityMapping} from "./types";
 
-/**
- * Common geographical prefixes only, longest first. This is intentionally an
- * explicit, conservative dictionary, not a rule that removes arbitrary first
- * two Chinese characters (which could be part of an organisation's name).
- */
 const GEOGRAPHICAL_PREFIXES=[
   "新疆维吾尔自治区","广西壮族自治区","宁夏回族自治区",
   "内蒙古自治区","西藏自治区","香港特别行政区","澳门特别行政区",
@@ -24,8 +20,6 @@ const GEOGRAPHICAL_PREFIXES=[
 
 function stripPlacePrefix(value:string):string {
   let result=value.trim();
-  // Allow e.g. 广东省深圳市腾讯... or 深圳腾讯..., but stop after
-  // removing a province and a city. No arbitrary substring removal.
   for(let i=0;i<2;i++) {
     const prefix=GEOGRAPHICAL_PREFIXES.find(p=>result.startsWith(p) && result.length>p.length+1);
     if(!prefix)break;
@@ -40,49 +34,101 @@ function chineseLabel(real:string,kind:"PER"|"ORG"):string {
   const content=chars.length===2 ? chars[0]+"*" : chars[0]+"*"+chars[chars.length-1];
   return "["+content+"]";
 }
+function addMapping(real:string,token:string,mapping:EntityMapping,used:Set<string>):void {
+  if(mapping.realToPlaceholder[real])return;
+  let unique=token,suffix=0;
+  while(used.has(unique)) {
+    suffix++;
+    unique=token.endsWith("]") ? token.slice(0,-1)+"-"+suffix+"]" : token+"-"+suffix;
+  }
+  used.add(unique);
+  mapping.placeholderToReal[unique]=real;
+  mapping.realToPlaceholder[real]=unique;
+}
 
-/**
- * Mapping keys are human-readable, globally unique, and reversible. Two real
- * entities with the same visual abbreviation get -1, -2, ... deterministically.
- * reservedTokens prevents collision with already-literal bracket text in input.
- */
+/** Allocate collision-aware masks for one numeric identifier family. */
+function addMaskedNumbers(
+  values:string[],kind:"ID"|"USCC"|"PHONE",mapping:EntityMapping,used:Set<string>
+):void {
+  const unique=[...new Set(values)].filter(value=>!mapping.realToPlaceholder[value]);
+  const prefixLength=kind==="ID"?6:kind==="USCC"?8:7;
+  const groups=new Map<string,string[]>();
+  for(const value of unique) {
+    const prefix=value.slice(0,prefixLength);
+    const group=groups.get(prefix) ?? [];
+    group.push(value);groups.set(prefix,group);
+  }
+  const candidates=unique.map(real=>{
+    const prefix=real.slice(0,prefixLength);
+    const collision=(groups.get(prefix)?.length ?? 0)>1;
+    let base:string;
+    if(kind==="ID")
+      base=prefix+"*".repeat(collision?11:12)+(collision?real.slice(-1).toUpperCase():"");
+    else if(kind==="USCC")
+      base=prefix+"*".repeat(collision?9:10)+(collision?real.slice(-1).toUpperCase():"");
+    else
+      base=prefix+"****";
+    return {real,base};
+  });
+  const baseGroups=new Map<string,typeof candidates>();
+  for(const candidate of candidates) {
+    const group=baseGroups.get(candidate.base) ?? [];
+    group.push(candidate);baseGroups.set(candidate.base,group);
+  }
+  for(const candidate of candidates) {
+    const collisionGroup=baseGroups.get(candidate.base) ?? [];
+    const index=collisionGroup.findIndex(item=>item.real===candidate.real);
+    const requested=collisionGroup.length>1
+      ? candidate.base+"-"+(index+1)
+      : candidate.base;
+    addMapping(candidate.real,requested,mapping,used);
+  }
+}
+
+/** Human-readable and reversible mapping for names, organisations and Chinese identifiers. */
 export function makeMapping(categories:Categories,reservedTokens:ReadonlySet<string>=new Set()):EntityMapping {
   const mapping:EntityMapping={
     placeholderToReal:Object.create(null),
     realToPlaceholder:Object.create(null)
   };
   const used=new Set(reservedTokens);
-  let numericIndex=0;
-  for(const kind of ["PER","ORG","NUM"] as const) {
+  for(const kind of ["PER","ORG"] as const) {
     for(const real of categories[kind]) {
       if(mapping.realToPlaceholder[real])continue;
-      if(kind==="NUM" && isDateOnlyToken(real))continue;
-      const preferred=kind==="NUM"
-        ? "[NUM_"+String(++numericIndex).padStart(3,"0")+"]"
-        : chineseLabel(real,kind);
-      let token=preferred;
-      const root=preferred.slice(0,-1);
-      let suffix=0;
-      while(used.has(token))token=root+"-"+(++suffix)+"]";
-      used.add(token);
-      mapping.placeholderToReal[token]=real;
-      mapping.realToPlaceholder[real]=token;
+      addMapping(real,chineseLabel(real,kind),mapping,used);
     }
+  }
+
+  const rawNumbers=[...new Set(categories.NUM)];
+  const idValues=[...(categories.ID ?? []),...rawNumbers.filter(isChineseIdNumber)];
+  const phoneValues=[...(categories.PHONE ?? []),...rawNumbers.filter(isChineseMobileNumber)];
+  const usccValues=[...(categories.USCC ?? []),...rawNumbers.filter(v=>isUnifiedSocialCreditCode(v) && !isChineseIdNumber(v))];
+  const typed=new Set([...idValues,...phoneValues,...usccValues]);
+
+  addMaskedNumbers(idValues,"ID",mapping,used);
+  addMaskedNumbers(usccValues,"USCC",mapping,used);
+  addMaskedNumbers(phoneValues,"PHONE",mapping,used);
+
+  let numericIndex=0;
+  for(const real of rawNumbers) {
+    if(typed.has(real) || mapping.realToPlaceholder[real] || isDateOnlyToken(real))continue;
+    const token="[NUM_"+String(++numericIndex).padStart(3,"0")+"]";
+    addMapping(real,token,mapping,used);
   }
   return mapping;
 }
 
-/** One-pass longest-match replacement, with date spans excluded beforehand. */
+/** One-pass longest-match replacement; dates and money spans remain untouched. */
 export function anonymizeText(text:string,mapping:EntityMapping):string {
   const terms=Object.keys(mapping.realToPlaceholder).sort((a,b)=>b.length-a.length || a.localeCompare(b));
   if(!terms.length)return text;
   const escaped=terms.map(value=>value.replace(/[|\\{}()[\]^$+*?.]/g,"\\$&"));
   const pattern=new RegExp(escaped.join("|"),"g");
   const replace=(fragment:string)=>fragment.replace(pattern,found=>mapping.realToPlaceholder[found]);
-  const protectedDates=findDateSpans(text);
-  if(!protectedDates.length)return replace(text);
+  const protectedSpans=findProtectedNumericSpans(text);
+  if(!protectedSpans.length)return replace(text);
   let result="",cursor=0;
-  for(const span of protectedDates) {
+  for(const span of protectedSpans) {
     result+=replace(text.slice(cursor,span.start));
     result+=text.slice(span.start,span.end);
     cursor=span.end;

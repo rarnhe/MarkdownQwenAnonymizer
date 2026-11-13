@@ -70,6 +70,6 @@ export class MarkdownDirectoryAnonymizer {
       await this.fs.writeFile(target,anonymizeText(file.content,mapping),{flag:"wx"});
     }
     return {outputDir:targetDirPath,fileCount:contents.length,chunkCount,
-      counts:{PER:categories.PER.length,ORG:categories.ORG.length,NUM:categories.NUM.length}};
+      counts:{PER:categories.PER.length,ORG:categories.ORG.length,NUM:categories.NUM.length+(categories.ID?.length ?? 0)+(categories.PHONE?.length ?? 0)+(categories.USCC?.length ?? 0)}};
   }
 }
