@@ -129,3 +129,24 @@ export function anonymizeText(text:string,mapping:EntityMapping):string {
   }
   return result+replace(text.slice(cursor));
 }
+
+
+/** Reverse the exact map in one pass, preferring the longest placeholder.
+ * Numeric masks are bounded by digits so a mask cannot match inside a longer number.
+ */
+export function restoreText(
+  text:string,placeholderToReal:Readonly<Record<string,string>>
+):string {
+  const tokens=Object.keys(placeholderToReal)
+    .filter(token=>token.length>0)
+    .sort((a,b)=>b.length-a.length || a.localeCompare(b));
+  if(!tokens.length)return text;
+  const alternatives=tokens.map(token=>{
+    const escaped=token.replace(/[|\\{}()[\]^$+*?.-]/g,"\\$&");
+    return /^\d+\*+[0-9A-Z]?(-\d+)?$/i.test(token)
+      ? "(?<![0-9])"+escaped+"(?![0-9])"
+      : escaped;
+  });
+  const pattern=new RegExp(alternatives.join("|"),"g");
+  return text.replace(pattern,token=>placeholderToReal[token]);
+}

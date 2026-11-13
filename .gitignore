@@ -152,8 +152,9 @@ vite.config.ts.timestamp-*
 tests/qwen2.5-0.5b-instruct-q4_0.gguf
 tests/.cache/
 tests/output/
-**/.anonymize_map.json
+**/.anonymize-map.json
 **/anonymize-map.json
+**/.anonymize_map.json
 **/.anonymize-*.new
 **/.anonymize-*.bak
 *_脱敏后/

@@ -30,8 +30,9 @@ async function main():Promise<void> {
     assert.equal(result.chunkCount,1);
     assert.ok(result.counts.PER>=1 && result.counts.ORG>=1 && result.counts.NUM>=1);
     assert.equal(result.outputDir,source);
-    assert.equal(result.mapPath,path.join(source,"anonymize-map.json"));
-    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),"anonymize-map.json\n");
+    assert.equal(result.action,"anonymized");
+    assert.equal(result.mapPath,path.join(source,".anonymize-map.json"));
+    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
     const output=await fs.readFile(path.join(source,"case.md"),"utf8");
     assert.ok(output.includes("[李*]"),"Expected Chinese person mask");
     assert.ok(output.includes("[星*司]"),"Expected Chinese organization mask");

@@ -5,7 +5,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import {findDateSpans,isDateOnlyToken} from "../src/core/dates";
 import {findMoneySpans,isMoneyOnlyToken,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode,isUsSocialSecurityNumber} from "../src/core/numbers";
-import {anonymizeText,makeMapping} from "../src/core/mapping";
+import {anonymizeText,makeMapping,restoreText} from "../src/core/mapping";
 import {GlobalEntityStore} from "../src/core/store";
 import {MarkdownDirectoryAnonymizer} from "../src/core/processor";
 import {createNodeFilePort} from "../src/adapters/node-fs";
@@ -24,9 +24,24 @@ test("three-character name reveals first and last; two-character collision adds 
   const source="许惠茹会见何然。何瑞也在场。何然再次出现。";
   const masked=anonymizeText(source,map);
   assert.equal(masked,"[许*茹]会见[何*]。[何*-1]也在场。[何*]再次出现。");
-  const restored=masked.replace(/\[[^\]]+\]/g,token=>map.placeholderToReal[token] ?? token);
+  const restored=restoreText(masked,map.placeholderToReal);
   assert.equal(restored,source);
 });
+
+test("restoreText reverses longest tokens in one pass and bounds numeric masks",()=>{
+  const map:Record<string,string>={
+    "[腾*司-1]":"腾讯公司",
+    "[腾*司]":"深圳腾讯计算机有限公司",
+    "429114************":"429114199001010018",
+    "1348579****":"13485791234"
+  };
+  const masked="甲[腾*司]乙[腾*司-1]丙；身份证429114************，手机1348579****。";
+  assert.equal(restoreText(masked,map),
+    "甲深圳腾讯计算机有限公司乙腾讯公司丙；身份证429114199001010018，手机13485791234。");
+  assert.equal(restoreText("编号1429114************9",map),"编号1429114************9",
+    "a numeric mask inside a longer digit sequence must not be restored");
+});
+
 test("short forms after 下简称 / 以下简称 are extracted even when a small LLM misses them",()=>{
   const store=new GlobalEntityStore();
   store.applyRegexFallback("深圳腾讯计算机有限公司（下简称腾讯公司），以下简称“阿里公司”；简称：测试研究所。");
@@ -113,10 +128,10 @@ test("recursive Markdown uses a single reversible dictionary and leaves dates in
     const result=await job.process();
     assert.equal(result.fileCount,2);
     assert.equal(result.chunkCount,1,"short files must share one extraction chunk");
-    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),"anonymize-map.json\n");
+    assert.equal(await fs.readFile(path.join(source,".gitignore"),"utf8"),".anonymize-map.json\n");
     const a=await fs.readFile(path.join(result.outputDir,"one.md"),"utf8");
     const b=await fs.readFile(path.join(result.outputDir,"nested","two.markdown"),"utf8");
-    const mapping=JSON.parse(await fs.readFile(path.join(source,"anonymize-map.json"),"utf8")) as Record<string,string>;
+    const mapping=JSON.parse(await fs.readFile(path.join(source,".anonymize-map.json"),"utf8")) as Record<string,string>;
     assert.equal(a,"[许*茹]、[何*]、[何*-1]。[腾*司]。2025年，1970年1月1日。\n");
     assert.equal(b,"下简称[腾*司-1]；[何*-1]。2026.09.08。编号：HT-2025-007。\n");
     assert.equal(mapping["[何*-1]"],"何瑞");

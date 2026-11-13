@@ -14,9 +14,13 @@ async function main():Promise<void> {
     const job=new MarkdownDirectoryAnonymizer(input,new LlamaServerClient(url),createNodeFilePort());
     const result=await job.process();
     console.log(JSON.stringify(result,null,2));
-    console.log("WARNING: Markdown files were overwritten IN PLACE. Local .gitignore excludes anonymize-map.json from normal git add; it contains plaintext identifiers. Never share or force-add it.");
+    if(result.action==="restored") {
+      console.log("RESTORED: Markdown files were reversed using .anonymize-map.json; the mapping file was deleted. Run again to anonymize.");
+    } else {
+      console.log("WARNING: Markdown files were overwritten IN PLACE. Local .gitignore excludes .anonymize-map.json from normal git add; it contains plaintext identifiers. Never share or force-add it.");
+    }
   } catch(error) {
-    console.error("Anonymization failed:",error);
+    console.error("Markdown processing failed:",error);
     process.exitCode=1;
   }
 }
