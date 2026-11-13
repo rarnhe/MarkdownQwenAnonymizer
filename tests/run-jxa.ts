@@ -56,6 +56,7 @@ async function main():Promise<void>{
     assert.equal(await fs.readFile(file,"utf8"),
       "姓名：\u300c李*\u300d\n机构：\u300c深圳星*司\u300d\n手机：\u300c1380013****\u300d\n合同编号：HT-2026-0001\n");
     assert.ok(await exists(one.mapPath));
+    assert.equal((await fs.stat(one.mapPath)).mode&0o777,0o600,"mapping file must be private");
     const two=execute(file);
     assert.equal(two.action,"restored");
     assert.equal(await fs.readFile(file,"utf8"),content);

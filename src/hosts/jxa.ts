@@ -63,6 +63,15 @@ function transaction(
     for(const item of [...installed].reverse()) {
       try{fs.rename(item.backup,item.original);}catch(e){failed.push(String(e));}
     }
+    // Foundation moveItem cannot overwrite in place. If a replacement failed
+    // after removing the destination, recover that particular missing original
+    // from its private backup as well (it is not yet in installed[]).
+    for(const item of stages) {
+      if(!fs.stat(item.original) && fs.stat(item.backup)) {
+        try{fs.rename(item.backup,item.original);}
+        catch(e){failed.push(item.original+": "+String(e));}
+      }
+    }
     if(mapCreated && !failed.length)try{fs.unlink(mapPath);}catch(e){failed.push(String(e));}
     for(const item of stages) {
       try{fs.unlink(item.pending);}catch(_e){}
