@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T18:12:39.950Z
-- GitHub run: 43480103249
-- Commit SHA: 552f014767056a90f270d33d021791ebdf956af9
+- CI 时间（UTC）: 2026-11-13T18:14:15.372Z
+- GitHub run: 43480606325
+- Commit SHA: 7c6c9eb94fd6bdd9532aaf51e5304e7cb56e2db6
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -26,26 +26,26 @@
 > markdown-qwen-anonymizer@1.0.0 test:jxa
 > tsx tests/run-jxa.ts
 
-/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)
-Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js /var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/jxa-anonymizer-48e4fy/contract.md
-/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)
+/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)
+Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js /var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/jxa-anonymizer-CHR5CN/cases
+/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)
 
     at genericNodeError (node:internal/errors:986:15)
     at wrappedFn (node:internal/errors:540:14)
     at checkExecSyncError (node:child_process:943:11)
     at execFileSync (node:child_process:979:15)
     at execute (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:25:16)
-    at main (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:52:15) {
+    at main (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:71:21) {
   status: 1,
   signal: null,
   output: [
     null,
     '',
-    "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)\n"
+    '/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)\n'
   ],
-  pid: 1366,
+  pid: 1399,
   stdout: '',
-  stderr: "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: undefined is not an object (evaluating '$.NSMutableURLRequest.alloc') (-2700)\n"
+  stderr: '/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: Error: No Markdown files found (-2700)\n'
 }
 
 ~~~
