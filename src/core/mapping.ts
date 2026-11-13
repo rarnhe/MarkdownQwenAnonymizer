@@ -1,4 +1,4 @@
-import {findProtectedNumericSpans,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode} from "./numbers";
+import {findProtectedNumericSpans,isChineseIdNumber,isChineseMobileNumber,isUnifiedSocialCreditCode,isMoneyOnlyToken,isUsSocialSecurityNumber} from "./numbers";
 import {isDateOnlyToken} from "./dates";
 import type {Categories,EntityMapping} from "./types";
 
@@ -99,7 +99,7 @@ export function makeMapping(categories:Categories,reservedTokens:ReadonlySet<str
     }
   }
 
-  const rawNumbers=[...new Set(categories.NUM)];
+  const rawNumbers=[...new Set(categories.NUM)].filter(value=>!isMoneyOnlyToken(value) && !isUsSocialSecurityNumber(value));
   const idValues=[...(categories.ID ?? []),...rawNumbers.filter(isChineseIdNumber)];
   const phoneValues=[...(categories.PHONE ?? []),...rawNumbers.filter(isChineseMobileNumber)];
   const usccValues=[...(categories.USCC ?? []),...rawNumbers.filter(v=>isUnifiedSocialCreditCode(v) && !isChineseIdNumber(v))];

@@ -39,8 +39,10 @@ export class MarkdownDirectoryAnonymizer {
     const controllable=await this.client.verifyCotBudgetControl();
     let chunkCount=0;
     // Finish *all* extractions before creating any output. Fail closed on server/JSON errors.
+    // Pre-scan every file first so amounts found later in the directory can
+    // also suppress a model-extracted bare number from an earlier file.
+    for(const file of contents)store.applyRegexFallback(file.content);
     for(const file of contents) {
-      store.applyRegexFallback(file.content);
       for(const chunk of createChunks(file.content,20000,50)) {
         store.addEntities(await this.client.extractEntitiesFromChunk(chunk,controllable));
         chunkCount++;
