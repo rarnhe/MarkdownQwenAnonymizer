@@ -24,7 +24,10 @@ async function main():Promise<void> {
     const output=await fs.readFile(path.join(result.outputDir,"case.md"),"utf8");
     for(const secret of ["李明","深圳星辰科技有限公司","110101199001012345","13800138000","123-45-6789"])
       assert.ok(!output.includes(secret),"Unmasked entity "+secret);
-    for(const prefix of ["PER","ORG","NUM"])assert.ok(output.includes("["+prefix+"_"));
+    assert.ok(output.includes("[李*]"),"Expected Chinese person mask");
+    assert.ok(output.includes("[星*司]"),"Expected Chinese organization mask");
+    assert.match(output,/\[NUM_\d+\]/);
+    for(const date of ["2025年","1970年1月1日","2026.09.08"])assert.ok(output.includes(date),"Date was modified: "+date);
     const mapping=JSON.parse(await fs.readFile(path.join(result.outputDir,".anonymize_map.json"),"utf8")) as Record<string,string>;
     assert.ok(Object.values(mapping).includes("李明"));
     assert.ok(Object.values(mapping).includes("13800138000"));

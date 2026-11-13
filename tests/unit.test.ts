@@ -47,11 +47,11 @@ test("overlap chunker makes forward progress and preserves boundaries",()=>{
 test("longest-match single-pass mapping is reversible",()=>{
   const mapping=makeMapping({PER:["李明"],ORG:["深圳星辰科技有限公司","星辰科技"],NUM:["110101199001012345"]});
   const rendered=anonymizeText("李明，深圳星辰科技有限公司，110101199001012345",mapping);
-  assert.match(rendered,/\[PER_001\]/);
-  assert.match(rendered,/\[ORG_001\]/);
+  assert.match(rendered,/\[李\*\]/);
+  assert.match(rendered,/\[星\*司\]/);
   assert.match(rendered,/\[NUM_001\]/);
   assert.ok(!rendered.includes("星辰科技"));
-  assert.equal(mapping.placeholderToReal["[PER_001]"],"李明");
+  assert.equal(mapping.placeholderToReal["[李*]"],"李明");
 });
 test("real recursive filesystem output retains tree, uses one global map, never overwrites",async()=>{
   const tmp=await fs.mkdtemp(path.join(os.tmpdir(),"markdown-anon-test-"));
@@ -70,13 +70,13 @@ test("real recursive filesystem output retains tree, uses one global map, never 
     assert.equal(first.fileCount,2);
     assert.ok(calls===first.chunkCount && calls>=2);
     const map=JSON.parse(await fs.readFile(path.join(first.outputDir,".anonymize_map.json"),"utf8"));
-    assert.equal(map["[PER_001]"],"李明");
+    assert.equal(map["[李*]"],"李明");
     for(const file of ["case.md","nested/reference.markdown"]) {
       const output=await fs.readFile(path.join(first.outputDir,file),"utf8");
       for(const sensitive of ["李明","深圳星辰科技有限公司","110101199001012345","13800138000","123-45-6789"])
         assert.ok(!output.includes(sensitive),"leaked token in "+file+": "+sensitive);
-      assert.match(output,/\[PER_001\]/);
-      assert.match(output,/\[ORG_001\]/);
+      assert.match(output,/\[李\*\]/);
+      assert.match(output,/\[星\*司\]/);
     }
     if(process.platform!=="win32")
       assert.equal((await fs.stat(path.join(first.outputDir,".anonymize_map.json"))).mode & 0o777,0o600);
