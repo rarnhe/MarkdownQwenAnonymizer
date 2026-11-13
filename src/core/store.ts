@@ -37,6 +37,9 @@ export class GlobalEntityStore {
     const orgs=/(?:^|\n)\s*(?:公司|公司名称|机构|组织|单位|企业名称)\s*[：:]\s*([^\s，,；;。]{2,100})/g;
     for(const found of text.matchAll(names)) this.add(found[1],this.persons);
     for(const found of text.matchAll(orgs)) this.add(found[1],this.organizations);
+    // Deterministic alias backstop: 法律文档中的「以下简称腾讯公司」或「下简称腾讯公司」。
+    const aliases=/(?:以下简称|下简称|简称)\s*[：:]?\s*["“‘「]?([一-鿿]{2,40}?(?:股份有限公司|有限责任公司|有限公司|公司|集团|事务所|研究所|研究院|协会|中心|银行))(?=[”"’」』）),，。；;\s]|$)/g;
+    for(const found of text.matchAll(aliases)) this.add(found[1],this.organizations);
   }
 
   exportSortedCategories(): Categories {

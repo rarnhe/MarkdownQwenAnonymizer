@@ -26,6 +26,15 @@ test("three-character name reveals first and last; two-character collision adds 
   const restored=masked.replace(/\[[^\]]+\]/g,token=>map.placeholderToReal[token] ?? token);
   assert.equal(restored,source);
 });
+test("short forms after 下简称 / 以下简称 are extracted even when a small LLM misses them",()=>{
+  const store=new GlobalEntityStore();
+  store.applyRegexFallback("深圳腾讯计算机有限公司（下简称腾讯公司），以下简称“阿里公司”；简称：测试研究所。");
+  const names=store.exportSortedCategories().ORG;
+  assert.ok(names.includes("腾讯公司"));
+  assert.ok(names.includes("阿里公司"));
+  assert.ok(names.includes("测试研究所"));
+});
+
 test("ignore Shenzhen locality and disambiguate company full name versus short name",()=>{
   const map=makeMapping(categories([],["深圳腾讯计算机有限公司","腾讯公司"]));
   assert.equal(map.realToPlaceholder["深圳腾讯计算机有限公司"],"[腾*司]");
