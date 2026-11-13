@@ -143,7 +143,7 @@ export class MarkdownDirectoryAnonymizer {
     const controllable=await this.client.verifyCotBudgetControl();
     let chunkCount=0;
     for(const file of contents)store.applyRegexFallback(file.content);
-    for(const chunk of createDocumentChunks(contents.map(file=>file.content),20000,50)) {
+    for(const chunk of createDocumentChunks(contents.map(file=>file.content))) {
       store.addEntities(await this.client.extractEntitiesFromChunk(chunk,controllable));
       chunkCount++;
     }

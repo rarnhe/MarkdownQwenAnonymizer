@@ -1,5 +1,12 @@
+/** Character counts are NOT model tokens. Leave context headroom for the
+ * extraction prompt and up to 2048 completion tokens. */
+export const MAX_CHUNK_CHARS=4000;
+export const CHUNK_OVERLAP_CHARS=50;
+
 /** Character-based chunks with overlap, optionally ending at a newline. */
-export function createChunks(text:string,maxChunkChars=20000,overlapChars=50):string[] {
+export function createChunks(
+  text:string,maxChunkChars=MAX_CHUNK_CHARS,overlapChars=CHUNK_OVERLAP_CHARS
+):string[] {
   if(!Number.isInteger(maxChunkChars) || maxChunkChars<=1 ||
      !Number.isInteger(overlapChars) || overlapChars<0 || overlapChars>=maxChunkChars)
     throw new Error("Invalid chunk length or overlap");
@@ -21,11 +28,11 @@ export function createChunks(text:string,maxChunkChars=20000,overlapChars=50):st
 
 /**
  * Directory-wide extraction stream: small Markdown documents share one chunk.
- * 20,000 characters and a 50-character overlap apply to the combined text,
+ * 4,000 characters and a 50-character overlap apply to the combined text,
  * while original files remain separate for their in-place replacements.
  */
 export function createDocumentChunks(
-  documents: readonly string[], maxChunkChars=20000, overlapChars=50
+  documents: readonly string[], maxChunkChars=MAX_CHUNK_CHARS, overlapChars=CHUNK_OVERLAP_CHARS
 ):string[] {
   const separator="\n\n--- 文档分隔 ---\n\n";
   return createChunks(documents.filter(text=>text.length>0).join(separator),maxChunkChars,overlapChars);

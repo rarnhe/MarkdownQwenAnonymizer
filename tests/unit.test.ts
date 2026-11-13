@@ -6,7 +6,7 @@ import * as os from "node:os";
 import {createServer} from "node:http";
 import {createNodeFilePort} from "../src/adapters/node-fs";
 import {LlamaServerClient} from "../src/adapters/llama-server";
-import {createChunks,createDocumentChunks} from "../src/core/chunks";
+import {createChunks,createDocumentChunks,MAX_CHUNK_CHARS,CHUNK_OVERLAP_CHARS} from "../src/core/chunks";
 import {ENTITY_GBNF_GRAMMAR} from "../src/core/grammar";
 import {makeMapping,anonymizeText} from "../src/core/mapping";
 import {MarkdownDirectoryAnonymizer} from "../src/core/processor";
@@ -127,9 +127,13 @@ test("directory-wide grouping makes two short Markdown files exactly one chunk",
   assert.ok(grouped[0].includes(docs[1].trim()));
   assert.ok(grouped[0].includes("文档分隔"));
   assert.equal(createDocumentChunks(["",""]).length,0);
-  const longChunks=createDocumentChunks(["A".repeat(23000),"B".repeat(100)],20000,50);
-  assert.ok(longChunks.length>1);
-  assert.ok(longChunks.every(chunk=>chunk.length<=20000),"each LLM chunk must stay within 20,000 characters");
+  assert.equal(MAX_CHUNK_CHARS,4000);
+  assert.equal(CHUNK_OVERLAP_CHARS,50);
+  const longChunks=createDocumentChunks(["A".repeat(4500),"B".repeat(100)]);
+  assert.equal(longChunks.length,2,"default document chunking must split at 4000 chars");
+  assert.ok(longChunks.every(chunk=>chunk.length<=4000),"each LLM chunk must stay within 4,000 characters");
+  assert.equal(longChunks[0].slice(-50),longChunks[1].slice(0,50),
+    "adjacent chunks must retain exactly 50 characters of overlap");
 });
 
 test("existing .gitignore stays untouched with sibling JSON",async()=>{
@@ -403,6 +407,7 @@ test("server HTTP 400 when CoT arguments unsupported triggers retry without them
     requests++;
     if(body.reasoning_budget===0) {res.writeHead(400);res.end("Unsupported");return;}
     assert.ok(body.grammar.includes("id_cards"));
+    assert.equal(body.max_tokens,2048,"entity extraction must request 2048 output tokens");
     res.setHeader("Content-Type","application/json");
     res.end(JSON.stringify({choices:[{message:{content:JSON.stringify(sample)}}]}));
   });
@@ -415,3 +420,31 @@ test("server HTTP 400 when CoT arguments unsupported triggers retry without them
     assert.equal(requests,2);
   }finally {await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()));}
 });
+
+test("entity extraction rejects finish_reason=length before parsing even syntactically valid JSON",async()=>{
+  let calls=0;
+  const server=createServer(async(req,res)=>{
+    const parts:Uint8Array[]=[];
+    for await(const chunk of req)parts.push(chunk as Uint8Array);
+    const body=JSON.parse(Buffer.concat(parts).toString("utf8"));
+    assert.equal(body.max_tokens,2048);
+    assert.ok(body.grammar.includes("id_cards"));
+    calls++;
+    res.setHeader("Content-Type","application/json");
+    res.end(JSON.stringify({
+      choices:[{finish_reason:"length",message:{content:JSON.stringify(sample)}}]
+    }));
+  });
+  await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  try {
+    const address=server.address();
+    if(!address || typeof address==="string")throw new Error("No server address");
+    const client=new LlamaServerClient("http://127.0.0.1:"+address.port);
+    await assert.rejects(client.extractEntitiesFromChunk("姓名：李明",false),
+      /finish_reason=length/);
+    assert.equal(calls,1);
+  } finally {
+    await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()));
+  }
+});
+

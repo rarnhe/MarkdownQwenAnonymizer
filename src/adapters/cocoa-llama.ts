@@ -22,7 +22,7 @@ export class CocoaLlamaClient {
       "【文本内容】\n"+text
     ].join("\n");
     const body=JSON.stringify({
-      messages:[{role:"user",content:prompt}],max_tokens:192,temperature:0,
+      messages:[{role:"user",content:prompt}],max_tokens:2048,temperature:0,
       grammar:ENTITY_GBNF_GRAMMAR,stream:false
     });
     const task=$.NSTask.alloc.init;
@@ -40,7 +40,7 @@ export class CocoaLlamaClient {
     const writer=stdin.fileHandleForWriting;
     writer.writeData(ns(body).dataUsingEncoding($.NSUTF8StringEncoding));
     writer.closeFile;
-    // Response is a small, bounded JSON message (max_tokens=192).
+    // Response is bounded by max_tokens=2048; reject truncated completions.
     const resultData=stdout.fileHandleForReading.readDataToEndOfFile;
     const errorData=stderr.fileHandleForReading.readDataToEndOfFile;
     task.waitUntilExit;
@@ -49,7 +49,10 @@ export class CocoaLlamaClient {
     if(Number(task.terminationStatus)!==0)
       throw new Error("llama-server curl failed: "+errorText.slice(0,300));
     const decoded=JSON.parse(result);
-    const content=decoded.choices?.[0]?.message?.content;
+    const choice=decoded.choices?.[0];
+    if(choice?.finish_reason==="length")
+      throw new Error("llama-server entity extraction truncated (finish_reason=length; max_tokens=2048)");
+    const content=choice?.message?.content;
     if(typeof content!=="string")throw new Error("No JSON model response");
     const found=JSON.parse(content);
     for(const key of ["persons","organizations","id_cards","codes"]) {

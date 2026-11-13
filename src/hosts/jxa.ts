@@ -109,7 +109,7 @@ export function run(argv:string[]=[]):string {
   for(const doc of docs)store.applyRegexFallback(doc.original);
   const client=new CocoaLlamaClient();
   let chunkCount=0;
-  for(const chunk of createDocumentChunks(docs.map(d=>d.original),20000,50)) {
+  for(const chunk of createDocumentChunks(docs.map(d=>d.original))) {
     store.addEntities(client.extractEntitiesFromChunk(chunk));
     chunkCount++;
   }

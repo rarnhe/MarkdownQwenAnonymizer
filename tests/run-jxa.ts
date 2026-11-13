@@ -85,6 +85,13 @@ async function main():Promise<void>{
     assert.equal(await fs.readFile(a,"utf8"),originalA);
     assert.equal(await fs.readFile(b,"utf8"),originalB);
     assert.ok(!await exists(directory.mapPath));
+    // A truncated response must not generate a sibling JSON or overwrite source.
+    const truncatedFile=path.join(root,"truncated.md");
+    const truncatedText="姓名：李明\\nFORCE_LENGTH_RESPONSE\\n";
+    await fs.writeFile(truncatedFile,truncatedText);
+    assert.throws(()=>execute(truncatedFile),/finish_reason=length/);
+    assert.equal(await fs.readFile(truncatedFile,"utf8"),truncatedText);
+    assert.ok(!await exists(path.join(root,"truncated.json")));
     console.log("PASS JXA: executable osascript file + directory, Foundation NSTask/curl HTTP, sibling map and exact restoration");
   }finally {
     server.kill("SIGTERM");

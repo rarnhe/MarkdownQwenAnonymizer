@@ -25,10 +25,14 @@ npm run build
 - 输入一个 `.md`/`.markdown` 文件，或包含 Markdown 文件的目录（仅目录模式递归）。
 - Markdown **原位覆盖**；`「李*」`、`「深圳星*司」`、`「1380013****」` 等 `「...」` 掩码，不再使用中括号。
 - **目录映射文件位于目录外同级**，例如 `/a/contracts/` → `/a/contracts.json`。单 Markdown `/a/case.md` → `/a/case.json`。遇到对应 JSON 则执行反脱敏并删除映射，不调用模型。
-- 全目录共用一份全局实体映射、20,000 字符切片与 50 字符重叠，重复实体复用掩码，身份证/统一社会信用代码冲突时才露末位，普通合同编号、日期和金额不修改。
+- 全目录共用一份全局实体映射、4,000 字符切片与 50 字符重叠，重复实体复用掩码，身份证/统一社会信用代码冲突时才露末位，普通合同编号、日期和金额不修改。
 - `dist/anonymizer.osascript.js` 通过 macOS `osascript -l JavaScript` 执行，使用 Cocoa/Objective-C 文件系统与 Foundation NSTask + macOS 内置 curl 请求本地服务，运行时不需要 Node；编译期使用 esbuild。
 - `dist/anonymizer.automator.js` 将源码复制到 Automator「快速操作」→「运行 JavaScript」，设置工作流程接收 Finder 的文件或文件夹；`run(input, parameters)` 接收**恰好一个**选中项并调用已在函数外初始化的引擎。
 - 两个 JXA 产物均依赖**已启动**的本地 llama-server，模型不嵌入 JavaScript。
+
+## 提取输出截断保护
+
+Node 与 JXA 的实体提取请求均设置 `max_tokens: 2048`，并检查本地 llama-server 返回的 `finish_reason`。如果为 `length`，**直接报错，不解析或接受可能不完整的 JSON，也不会将不完整的映射应用到 Markdown**。Chunk 使用最多 4,000 个字符、相邻块重叠 50 字符；这是字符上限，不等于模型 tokens，上下文窗口仍须容纳输入、提示词及输出空间。
 
 ## 保护措施
 
