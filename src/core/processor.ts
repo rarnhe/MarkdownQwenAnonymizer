@@ -47,7 +47,11 @@ export class MarkdownDirectoryAnonymizer {
       }
     }
     const categories=store.exportSortedCategories();
-    const mapping:EntityMapping=makeMapping(categories);
+    const reserved=new Set<string>();
+    for(const file of contents) {
+      for(const match of file.content.matchAll(/\[[^\]\r\n]{1,80}\]/g))reserved.add(match[0]);
+    }
+    const mapping:EntityMapping=makeMapping(categories,reserved);
     const parent=path.dirname(this.srcDirPath);
     const stem=path.basename(this.srcDirPath)+"_脱敏后";
     let targetDirPath=path.join(parent,stem);

@@ -1,4 +1,5 @@
 import type {Categories,ExtractedEntities} from "./types";
+import {isDateOnlyToken} from "./dates";
 
 /** One global dictionary for all Markdown files and overlapping chunks. */
 export class GlobalEntityStore {
@@ -9,7 +10,10 @@ export class GlobalEntityStore {
   addEntities(entities: Partial<ExtractedEntities>): void {
     for(const value of entities.persons ?? []) this.add(value,this.persons);
     for(const value of entities.organizations ?? []) this.add(value,this.organizations);
-    for(const value of [...(entities.id_cards ?? []),...(entities.codes ?? [])]) this.add(value,this.codes);
+    for(const value of [...(entities.id_cards ?? []),...(entities.codes ?? [])]) {
+      if(typeof value==="string" && isDateOnlyToken(value))continue;
+      this.add(value,this.codes);
+    }
   }
 
   private add(value: unknown, destination: Set<string>): void {
