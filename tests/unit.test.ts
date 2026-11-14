@@ -127,11 +127,11 @@ test("directory-wide grouping makes two short Markdown files exactly one chunk",
   assert.ok(grouped[0].includes(docs[1].trim()));
   assert.ok(grouped[0].includes("文档分隔"));
   assert.equal(createDocumentChunks(["",""]).length,0);
-  assert.equal(MAX_CHUNK_CHARS,4000);
+  assert.equal(MAX_CHUNK_CHARS,6000);
   assert.equal(CHUNK_OVERLAP_CHARS,50);
-  const longChunks=createDocumentChunks(["A".repeat(4500),"B".repeat(100)]);
-  assert.equal(longChunks.length,2,"default document chunking must split at 4000 chars");
-  assert.ok(longChunks.every(chunk=>chunk.length<=4000),"each LLM chunk must stay within 4,000 characters");
+  const longChunks=createDocumentChunks(["A".repeat(6500),"B".repeat(100)]);
+  assert.equal(longChunks.length,2,"default document chunking must split at 6000 chars");
+  assert.ok(longChunks.every(chunk=>chunk.length<=6000),"each LLM chunk must stay within 6,000 characters");
   assert.equal(longChunks[0].slice(-50),longChunks[1].slice(0,50),
     "adjacent chunks must retain exactly 50 characters of overlap");
 });

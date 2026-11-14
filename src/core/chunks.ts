@@ -1,6 +1,6 @@
 /** Character counts are NOT model tokens. Leave context headroom for the
  * extraction prompt and up to 2048 completion tokens. */
-export const MAX_CHUNK_CHARS=4000;
+export const MAX_CHUNK_CHARS=6000;
 export const CHUNK_OVERLAP_CHARS=50;
 
 /** Character-based chunks with overlap, optionally ending at a newline. */
@@ -28,7 +28,7 @@ export function createChunks(
 
 /**
  * Directory-wide extraction stream: small Markdown documents share one chunk.
- * 4,000 characters and a 50-character overlap apply to the combined text,
+ * 6,000 characters and a 50-character overlap apply to the combined text,
  * while original files remain separate for their in-place replacements.
  */
 export function createDocumentChunks(

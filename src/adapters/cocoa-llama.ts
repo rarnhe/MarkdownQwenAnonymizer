@@ -13,6 +13,13 @@ function unwrap(value:any):string{return String(ObjC.unwrap(value));}
  */
 export class CocoaLlamaClient {
   constructor(private readonly url:string="http://127.0.0.1:9931") {}
+  private timeoutSeconds():string {
+    const env=$.NSProcessInfo.processInfo.environment;
+    const raw=ObjC.unwrap(env.objectForKey("ANONYMIZER_TIMEOUT_MS"));
+    const ms=raw==null?600000:Number(raw);
+    if(!Number.isSafeInteger(ms)||ms<=0||ms>4294967295)throw new Error("Invalid ANONYMIZER_TIMEOUT_MS");
+    return String(ms/1000);
+  }
 
   extractEntitiesFromChunk(text:string):ExtractedEntities {
     ObjC.import("Foundation");
@@ -29,7 +36,7 @@ export class CocoaLlamaClient {
     const stdin=$.NSPipe.pipe,stdout=$.NSPipe.pipe,stderr=$.NSPipe.pipe;
     task.launchPath="/usr/bin/curl";
     task.arguments=[
-      "--silent","--show-error","--fail","--max-time","180",
+      "--silent","--show-error","--fail","--max-time",this.timeoutSeconds(),
       "--request","POST","--header","Content-Type: application/json",
       "--data-binary","@-",this.url+"/v1/chat/completions"
     ];

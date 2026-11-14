@@ -143,9 +143,13 @@ export class MarkdownDirectoryAnonymizer {
     const controllable=await this.client.verifyCotBudgetControl();
     let chunkCount=0;
     for(const file of contents)store.applyRegexFallback(file.content);
-    for(const chunk of createDocumentChunks(contents.map(file=>file.content))) {
+    const chunks=createDocumentChunks(contents.map(file=>file.content));
+    for(const chunk of chunks) {
+      const started=Date.now();
+      console.error(`[${chunkCount+1}/${chunks.length}] extracting ${chunk.length} characters`);
       store.addEntities(await this.client.extractEntitiesFromChunk(chunk,controllable));
       chunkCount++;
+      console.error(`[${chunkCount}/${chunks.length}] completed in ${((Date.now()-started)/1000).toFixed(1)}s`);
     }
     const categories=store.exportSortedCategories();
     const reserved=new Set<string>();

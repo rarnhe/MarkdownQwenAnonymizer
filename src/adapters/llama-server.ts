@@ -17,7 +17,11 @@ function parseEntities(content:unknown):ExtractedEntities {
 
 /** HTTP adapter for llama.cpp's OpenAI-compatible /v1/chat/completions endpoint. */
 export class LlamaServerClient implements EntityExtractor {
-  constructor(private readonly baseUrl="http://127.0.0.1:9931") {}
+  constructor(private readonly baseUrl="http://127.0.0.1:9931",
+    private readonly timeoutMs=Number(process.env.ANONYMIZER_TIMEOUT_MS ?? 600000)) {
+    if(!Number.isSafeInteger(timeoutMs) || timeoutMs<=0 || timeoutMs>4294967295)
+      throw new Error("Invalid ANONYMIZER_TIMEOUT_MS");
+  }
 
   async verifyCotBudgetControl():Promise<boolean> {
     const payload={
@@ -67,7 +71,7 @@ export class LlamaServerClient implements EntityExtractor {
     };
     const send=(payload:Record<string,unknown>)=>fetch(this.baseUrl+"/v1/chat/completions",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload),signal:AbortSignal.timeout(180000)
+      body:JSON.stringify(payload),signal:AbortSignal.timeout(this.timeoutMs)
     });
     const payload:Record<string,unknown>=isControllableCot
       ? {...base,reasoning_budget:0,chat_template_kwargs:{enable_thinking:false}}
