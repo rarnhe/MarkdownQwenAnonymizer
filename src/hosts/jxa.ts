@@ -112,10 +112,10 @@ export function run(argv:string[]=[]):string {
   const chunks=createDocumentChunks(docs.map(d=>d.original));
   for(const chunk of chunks) {
     const started=Date.now();
-    console.error(`[${chunkCount+1}/${chunks.length}] extracting ${chunk.length} characters`);
+    console.log(`[${chunkCount+1}/${chunks.length}] extracting ${chunk.length} characters`);
     store.addEntities(client.extractEntitiesFromChunk(chunk));
     chunkCount++;
-    console.error(`[${chunkCount}/${chunks.length}] completed in ${((Date.now()-started)/1000).toFixed(1)}s`);
+    console.log(`[${chunkCount}/${chunks.length}] completed in ${((Date.now()-started)/1000).toFixed(1)}s`);
   }
   const categories:Categories=store.exportSortedCategories();
   const reserved=new Set<string>();
