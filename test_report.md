@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T19:22:29.050Z
-- GitHub run: 43491167573
-- Commit SHA: 97f3952fe300ab7a109acfb963ddc76adbc637ab
+- CI 时间（UTC）: 2026-11-14T00:38:37.473Z
+- GitHub run: 43535524156
+- Commit SHA: f59c88c13d48e7409afe05a60a3f22df0accdbb1
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -12,14 +12,56 @@
 | TypeScript typecheck | **SUCCESS** | tests/output/typecheck.log |
 | Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
 | Standalone JXA builds | **SUCCESS** | tests/output/build.log |
-| macOS JXA file/folder tests | **SUCCESS** | tests/output/jxa.log |
-| Qwen GGUF download | **SUCCESS** | tests/output/download.log |
-| Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
-| Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
+| macOS JXA file/folder tests | **FAILURE** | tests/output/jxa.log |
+| Qwen GGUF download | **SKIPPED** | tests/output/download.log |
+| Real llama-server startup | **SKIPPED** | tests/output/server-ready.log |
+| Real Qwen GGUF integration | **SKIPPED** | tests/output/live.log |
 
 ## 失败项
 
-- 无，所有必须阶段成功。
+### macOS JXA file/folder tests
+
+~~~text
+
+> markdown-qwen-anonymizer@1.0.0 test:jxa
+> tsx tests/run-jxa.ts
+
+/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: console.error is not a function. (In 'console.error(`[${chunkCount + 1}/${chunks.length}] extracting ${chunk.length} characters`)', 'console.error' is undefined) (-2700)
+Error: Command failed: /Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js /var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/jxa-anonymizer-PcWqR9/contract.md
+/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: console.error is not a function. (In 'console.error(`[${chunkCount + 1}/${chunks.length}] extracting ${chunk.length} characters`)', 'console.error' is undefined) (-2700)
+
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:943:11)
+    at execFileSync (node:child_process:979:15)
+    at execute (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:25:16)
+    at main (/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/tests/run-jxa.ts:52:15) {
+  status: 1,
+  signal: null,
+  output: [
+    null,
+    '',
+    "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: console.error is not a function. (In 'console.error(`[${chunkCount + 1}/${chunks.length}] extracting ${chunk.length} characters`)', 'console.error' is undefined) (-2700)\n"
+  ],
+  pid: 2537,
+  stdout: '',
+  stderr: "/Users/runner/work/MarkdownQwenAnonymizer/MarkdownQwenAnonymizer/dist/anonymizer.osascript.js: execution error: Error: TypeError: console.error is not a function. (In 'console.error(`[${chunkCount + 1}/${chunks.length}] extracting ${chunk.length} characters`)', 'console.error' is undefined) (-2700)\n"
+}
+
+~~~
+
+### Qwen GGUF download
+
+- 没有对应日志（阶段可能未启动）。
+
+### Real llama-server startup
+
+- 没有对应日志（阶段可能未启动）。
+
+### Real Qwen GGUF integration
+
+- 没有对应日志（阶段可能未启动）。
+
 
 ## 模型与隐私说明
 
