@@ -91,11 +91,15 @@ export function makeMapping(
   // consults the global realToPlaceholder map and never changes an older mask.
   // This avoids depending on model output ordering or locale-specific sorting.
   const source=markdownDocuments.join("\n\n");
+  const positions=new Map<string,number>();
+  const position=(value:string)=>{
+    if(!positions.has(value))positions.set(value,source.indexOf(value));
+    const found=positions.get(value)!;return found<0?Infinity:found;
+  };
   const byAppearance=(values:string[]):string[]=> {
     if(!markdownDocuments.length)return values;
     return [...values].sort((a,b)=>{
-      const ia=source.indexOf(a),ib=source.indexOf(b);
-      return (ia<0?Infinity:ia)-(ib<0?Infinity:ib);
+      return position(a)-position(b);
     });
   };
   for(const kind of ["PER","ORG"] as const) {
@@ -121,11 +125,17 @@ export function makeMapping(
 
 /** One-pass longest-match replacement; dates and money spans remain untouched. */
 export function anonymizeText(text:string,mapping:EntityMapping):string {
+  return createTextAnonymizer(mapping)(text);
+}
+
+/** Compile the global longest-match pattern once per job, reuse across files. */
+export function createTextAnonymizer(mapping:EntityMapping):(text:string)=>string {
   const terms=Object.keys(mapping.realToPlaceholder).sort((a,b)=>b.length-a.length || a.localeCompare(b));
-  if(!terms.length)return text;
+  if(!terms.length)return text=>text;
   const escaped=terms.map(value=>value.replace(/[|\\{}()[\]^$+*?.]/g,"\\$&"));
   const pattern=new RegExp(escaped.join("|"),"g");
   const replace=(fragment:string)=>fragment.replace(pattern,found=>mapping.realToPlaceholder[found]);
+  return (text:string)=>{
   const protectedSpans=findProtectedNumericSpans(text);
   if(!protectedSpans.length)return replace(text);
   let result="",cursor=0;
@@ -135,6 +145,7 @@ export function anonymizeText(text:string,mapping:EntityMapping):string {
     cursor=span.end;
   }
   return result+replace(text.slice(cursor));
+  };
 }
 
 

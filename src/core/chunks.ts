@@ -16,7 +16,7 @@ export function createChunks(
   while(start<text.length) {
     let end=Math.min(start+maxChunkChars,text.length);
     if(end<text.length) {
-      const newline=text.lastIndexOf("\n",end);
+      const newline=text.lastIndexOf("\n",end-1);
       if(newline>start+Math.floor(maxChunkChars/2)) end=newline+1;
     }
     chunks.push(text.slice(start,end));
@@ -35,5 +35,8 @@ export function createDocumentChunks(
   documents: readonly string[], maxChunkChars=MAX_CHUNK_CHARS, overlapChars=CHUNK_OVERLAP_CHARS
 ):string[] {
   const separator="\n\n--- 文档分隔 ---\n\n";
-  return createChunks(documents.filter(text=>text.length>0).join(separator),maxChunkChars,overlapChars);
+  // Exact duplicates contribute the same entities; retain their first position.
+  // Original documents are still all replaced/restored separately.
+  const unique=Array.from(new Set(documents.filter(text=>text.length>0)));
+  return createChunks(unique.join(separator),maxChunkChars,overlapChars);
 }

@@ -7,12 +7,12 @@ import type {FilePort} from "../ports/file-port";
 import type {EntityExtractor,EntityMapping} from "./types";
 import {GlobalEntityStore} from "./store";
 import {createDocumentChunks} from "./chunks";
-import {makeMapping,anonymizeText,restoreText} from "./mapping";
+import {makeMapping,createTextAnonymizer,restoreText} from "./mapping";
 
 export type AnonymizeResult =
   | {action:"restored";outputDir:string;mapPath:string;fileCount:number}
   | {action:"anonymized";outputDir:string;mapPath:string;fileCount:number;
-     chunkCount:number;counts:{PER:number;ORG:number;NUM:number}};
+     chunkCount:number;requestCount:number;cacheHits:number;counts:{PER:number;ORG:number;NUM:number}};
 interface StagedFile {original:string;pending:string;backup:string;content:string;mode:number;}
 
 /** Maps are intentionally outside processed folders: folder /a/cases -> /a/cases.json.
@@ -161,11 +161,13 @@ export class MarkdownDirectoryAnonymizer {
     };
     await persist();
     const controllable=await this.client.verifyCotBudgetControl();
+    let requestCount=0,cacheHits=0;
     const extract=async(text:string,depth=0):Promise<ExtractedEntities>=>{
       const key=sha256(text);
-      if(progress.results[key])return progress.results[key];
+      if(progress.results[key]){cacheHits++;console.error(`reused checkpoint: ${text.length} characters`);return progress.results[key];}
       let result:ExtractedEntities;
       try {
+        requestCount++;
         result=await this.client.extractEntitiesFromChunk(text,controllable);
         if(!validEntities(result))throw new Error("Invalid extracted field");
       } catch(error) {
@@ -201,7 +203,8 @@ export class MarkdownDirectoryAnonymizer {
       if(await this.fs.readFile(file.filePath,"utf8")!==file.content)
         throw new Error("Source changed during extraction; progress retained");
     const staged=this.makeStages(contents,"apply");
-    const prepared=contents.map(file=>anonymizeText(file.content,mapping));
+    const apply=createTextAnonymizer(mapping);
+    const prepared=contents.map(file=>apply(file.content));
     const installed:StagedFile[]=[];
     let mapCreated=false;
     try {
@@ -230,7 +233,7 @@ export class MarkdownDirectoryAnonymizer {
     if(cleanup.some(result=>result.status==="rejected"))
       throw new Error("Anonymization succeeded but some plaintext backups could not be deleted");
     await this.fs.unlink(progressPath);
-    return {action:"anonymized",outputDir:this.inputPath,mapPath,fileCount:files.length,chunkCount,
+    return {action:"anonymized",outputDir:this.inputPath,mapPath,fileCount:files.length,chunkCount,requestCount,cacheHits,
       counts:{PER:categories.PER.length,ORG:categories.ORG.length,
         NUM:(categories.ID?.length??0)+(categories.PHONE?.length??0)+(categories.USCC?.length??0)}};
   }

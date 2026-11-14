@@ -5,7 +5,7 @@ import {loadProgress,progressConfig,recoverable,splitRetry,mergeEntities,validEn
 import type {ExtractedEntities} from "../core/types";
 import {GlobalEntityStore} from "../core/store";
 import {createDocumentChunks} from "../core/chunks";
-import {makeMapping,anonymizeText,restoreText} from "../core/mapping";
+import {makeMapping,createTextAnonymizer,restoreText} from "../core/mapping";
 import type {Categories,EntityMapping} from "../core/types";
 
 declare const ObjC:any;
@@ -122,11 +122,13 @@ export function run(argv:string[]=[]):string {
     finally{fs.unlink(temp);}
   };
   persist();
+  let requestCount=0,cacheHits=0;
   const extract=(text:string,depth=0):ExtractedEntities=>{
     const key=sha256(text);
-    if(progress.results[key])return progress.results[key];
+    if(progress.results[key]){cacheHits++;console.log(`reused checkpoint: ${text.length} characters`);return progress.results[key];}
     let result:ExtractedEntities;
     try {
+      requestCount++;
       result=client.extractEntitiesFromChunk(text);
       if(!validEntities(result))throw new Error("Invalid extracted field");
     } catch(error) {
@@ -155,10 +157,11 @@ export function run(argv:string[]=[]):string {
   const mapping=makeMapping(categories,reserved,docs.map(d=>d.original));
   for(const doc of docs)if(fs.readFile(doc.file)!==doc.original)
     throw new Error("Source changed during extraction; progress retained");
-  transaction(docs,docs.map(d=>anonymizeText(d.original,mapping)),mapPath,false,fs,mapping);
+  const apply=createTextAnonymizer(mapping);
+  transaction(docs,docs.map(d=>apply(d.original)),mapPath,false,fs,mapping);
   fs.unlink(progressPath);
   return JSON.stringify({
-    action:"anonymized",outputDir:input,mapPath,fileCount:docs.length,chunkCount,
+    action:"anonymized",outputDir:input,mapPath,fileCount:docs.length,chunkCount,requestCount,cacheHits,
     counts:{PER:categories.PER.length,ORG:categories.ORG.length,
       NUM:(categories.ID?.length??0)+(categories.PHONE?.length??0)+(categories.USCC?.length??0)}
   });

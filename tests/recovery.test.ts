@@ -78,3 +78,41 @@ test("configured HTTP timeout aborts request and invalid timeouts are rejected",
       .extractEntitiesFromChunk("synthetic",false),{name:"TimeoutError"});
   } finally {server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
 });
+
+test("416 identical documents require one extraction and all originals round-trip",async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),"dedup-"));
+  try {
+    const input=path.join(root,"cases");await fs.mkdir(input);
+    const plain="姓名：李明；"+"正文".repeat(100);
+    for(let i=0;i<416;i++)await fs.writeFile(path.join(input,`${i}.md`),plain);
+    let calls=0;
+    const client:EntityExtractor={async verifyCotBudgetControl(){return false;},async extractEntitiesFromChunk(){calls++;return entities;}};
+    const job=new MarkdownDirectoryAnonymizer(input,client,createNodeFilePort());
+    const result=await job.process();assert.equal(result.action,"anonymized");
+    if(result.action!=="anonymized")throw Error("action");
+    assert.equal(result.chunkCount,1);assert.equal(result.requestCount,1);assert.equal(calls,1);
+    for(let i=0;i<416;i++)assert.ok((await fs.readFile(path.join(input,`${i}.md`),"utf8")).includes("「李*」"));
+    await job.process();
+    for(let i=0;i<416;i++)assert.equal(await fs.readFile(path.join(input,`${i}.md`),"utf8"),plain);
+  } finally {await fs.rm(root,{recursive:true,force:true});}
+});
+
+test("identical top-level chunks reuse successful SHA256 results within the job",async()=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),"chunk-cache-"));
+  try {
+    const input=path.join(root,"case.md");await fs.writeFile(input,"文".repeat(18000));
+    let calls=0;
+    const client:EntityExtractor={async verifyCotBudgetControl(){return false;},async extractEntitiesFromChunk(){calls++;return entities;}};
+    const result=await new MarkdownDirectoryAnonymizer(input,client,createNodeFilePort()).process();
+    if(result.action!=="anonymized")throw Error("action");
+    assert.equal(result.chunkCount,4);assert.equal(calls,2);
+    assert.equal(result.requestCount,2);assert.equal(result.cacheHits,2);
+  } finally {await fs.rm(root,{recursive:true,force:true});}
+});
+
+test("newline at exact chunk boundary cannot exceed the configured length",async()=>{
+  const {createChunks}=await import("../src/core/chunks");
+  const chunks=createChunks("a".repeat(6000)+"\n"+"b".repeat(500));
+  assert.ok(chunks.every(c=>c.length<=6000));
+  assert.equal(chunks[0].slice(-50),chunks[1].slice(0,50));
+});

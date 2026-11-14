@@ -25,7 +25,9 @@ const server=http.createServer(async(req,res)=>{
       if(resumeCalls===2){res.writeHead(401);res.end("synthetic interruption");return;}
     }
     res.setHeader("Content-Type","application/json");
-    const truncated=String(body.messages?.[0]?.content||"").includes("FORCE_LENGTH_RESPONSE");
+    const prompt=String(body.messages?.[0]?.content||"");
+    const truncated=prompt.includes("FORCE_LENGTH_RESPONSE") ||
+      (prompt.includes("SPLIT_LONG")&&prompt.split("【文本内容】\n")[1].length>3100);
     res.end(JSON.stringify({choices:[{
       finish_reason:truncated?"length":"stop",
       message:{content:truncated?"{\\\"persons\\\":[\\\"李明":JSON.stringify(data)}

@@ -92,7 +92,7 @@ async function main():Promise<void>{
     assert.throws(()=>execute(truncatedFile),/finish_reason=length/);
     assert.equal(await fs.readFile(truncatedFile,"utf8"),truncatedText);
     assert.ok(!await exists(path.join(root,"truncated.json")));
-    const large=path.join(root,"large");await fs.mkdir(large);
+    const large=path.join(root,"大目录 空格");await fs.mkdir(large);
     const largeText="姓名：李明；FAIL_RESUME；"+"正文".repeat(20);
     for(let i=0;i<416;i++)await fs.writeFile(path.join(large,`${i}.md`),largeText+i);
     assert.throws(()=>execute(large),/progress retained/);
@@ -109,6 +109,19 @@ async function main():Promise<void>{
     assert.ok(!await exists(large+".progress.json"));
     assert.equal(execute(large).action,"restored");
     for(let i=0;i<416;i++)assert.equal(await fs.readFile(path.join(large,`${i}.md`),"utf8"),largeText+i);
+    const splitFile=path.join(root,"split.md");
+    const splitText=("姓名：李明；SPLIT_LONG；"+"文".repeat(50)).repeat(70);
+    await fs.writeFile(splitFile,splitText);
+    const splitResult=execute(splitFile);
+    assert.equal(splitResult.chunkCount,1);assert.equal(splitResult.requestCount,3);
+    assert.equal(execute(splitFile).action,"restored");
+    assert.equal(await fs.readFile(splitFile,"utf8"),splitText);
+    const duplicates=path.join(root,"duplicates");await fs.mkdir(duplicates);
+    for(let i=0;i<416;i++)await fs.writeFile(path.join(duplicates,`${i}.md`),largeText);
+    const deduped=execute(duplicates);
+    assert.equal(deduped.fileCount,416);assert.equal(deduped.chunkCount,1);assert.equal(deduped.requestCount,1);
+    assert.equal(execute(duplicates).action,"restored");
+    for(let i=0;i<416;i++)assert.equal(await fs.readFile(path.join(duplicates,`${i}.md`),"utf8"),largeText);
     console.log("PASS JXA: executable osascript file + directory, Foundation NSTask/curl HTTP, sibling map and exact restoration");
   }finally {
     server.kill("SIGTERM");
