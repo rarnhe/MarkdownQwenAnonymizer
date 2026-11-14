@@ -17,7 +17,19 @@ function parseEntities(content:unknown):ExtractedEntities {
 
 /** HTTP adapter for llama.cpp's OpenAI-compatible /v1/chat/completions endpoint. */
 export class LlamaServerClient implements EntityExtractor {
-  constructor(private readonly baseUrl="http://127.0.0.1:9931") {}
+  constructor(private readonly baseUrl="http://127.0.0.1:9931",
+    private readonly timeoutMs=Number(process.env.ANONYMIZER_TIMEOUT_MS ?? 600000)) {
+    if(!Number.isSafeInteger(timeoutMs) || timeoutMs<=0 || timeoutMs>4294967295)
+      throw new Error("Invalid ANONYMIZER_TIMEOUT_MS");
+  }
+
+  async cacheIdentity():Promise<string> {
+    const response=await fetch(this.baseUrl+"/v1/models",{signal:AbortSignal.timeout(this.timeoutMs)});
+    if(!response.ok)throw new Error("Cannot identify llama-server model: HTTP "+response.status);
+    const data=await response.json() as {data?:Array<{id?:string}>};
+    if(!data.data?.[0]?.id)throw new Error("Cannot identify llama-server model");
+    return this.baseUrl+":"+data.data[0].id+":"+(process.env.ANONYMIZER_MODEL_REVISION||"");
+  }
 
   async verifyCotBudgetControl():Promise<boolean> {
     const payload={
@@ -62,12 +74,12 @@ export class LlamaServerClient implements EntityExtractor {
       "【文本内容】\n"+chunkText
     ].join("\n");
     const base={
-      messages:[{role:"user",content:prompt}],max_tokens:192,
+      messages:[{role:"user",content:prompt}],max_tokens:2048,
       temperature:0,grammar:ENTITY_GBNF_GRAMMAR,stream:false
     };
     const send=(payload:Record<string,unknown>)=>fetch(this.baseUrl+"/v1/chat/completions",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload),signal:AbortSignal.timeout(180000)
+      body:JSON.stringify(payload),signal:AbortSignal.timeout(this.timeoutMs)
     });
     const payload:Record<string,unknown>=isControllableCot
       ? {...base,reasoning_budget:0,chat_template_kwargs:{enable_thinking:false}}
@@ -75,7 +87,14 @@ export class LlamaServerClient implements EntityExtractor {
     let response=await send(payload);
     if(response.status===400 && isControllableCot) response=await send(base);
     if(!response.ok) throw new Error("llama-server HTTP "+response.status+": "+(await response.text()).slice(0,250));
-    const data=await response.json() as {choices?:Array<{message?:{content?:string}}>} ;
-    return parseEntities(data.choices?.[0]?.message?.content);
+    const data=await response.json() as {choices?:Array<{
+      finish_reason?:string|null;message?:{content?:string}
+    }>};
+    const choice=data.choices?.[0];
+    // A truncated completion may contain valid-looking JSON, but its entity list
+    // is not trustworthy. Never apply a partial map to the original documents.
+    if(choice?.finish_reason==="length")
+      throw new Error("llama-server entity extraction truncated (finish_reason=length; max_tokens=2048)");
+    return parseEntities(choice?.message?.content);
   }
 }

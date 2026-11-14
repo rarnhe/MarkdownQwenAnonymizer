@@ -1,8 +1,8 @@
 # MarkdownQwenAnonymizer 双轨测试报告
 
-- CI 时间（UTC）: 2026-11-13T17:43:18.539Z
-- GitHub run: 43475168817
-- Commit SHA: 0d9e606efa7ca8673aa21dd7339290f7b5f0523f
+- CI 时间（UTC）: 2026-11-14T00:49:17.047Z
+- GitHub run: 43536590885
+- Commit SHA: 2744582ca7c83794f0073de93f9e569bae2f911a
 
 ## GitHub Actions 与 test_report.md 阶段结果
 
@@ -11,6 +11,8 @@
 | npm ci | **SUCCESS** | tests/output/npm-ci.log |
 | TypeScript typecheck | **SUCCESS** | tests/output/typecheck.log |
 | Anonymizer unit tests | **SUCCESS** | tests/output/unit.log |
+| Standalone JXA builds | **SUCCESS** | tests/output/build.log |
+| macOS JXA file/folder tests | **SUCCESS** | tests/output/jxa.log |
 | Qwen GGUF download | **SUCCESS** | tests/output/download.log |
 | Real llama-server startup | **SUCCESS** | tests/output/server-ready.log |
 | Real Qwen GGUF integration | **SUCCESS** | tests/output/live.log |
@@ -22,5 +24,5 @@
 ## 模型与隐私说明
 
 - 实际 GGUF 在 CI 时下载到 tests/，不提交为普通 Git 对象。
-- 不上传 GGUF 权重或含真实值的 .anonymize-map.json。
+- 不上传 GGUF 权重或含真实值的 sibling JSON mapping。
 - 真实资料发布前仍必须人工核对遗漏实体。

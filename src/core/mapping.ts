@@ -33,10 +33,10 @@ function splitPlacePrefix(value:string):{place:string;core:string} {
 function chineseLabel(real:string,kind:"PER"|"ORG"):string {
   const {place,core}=kind==="ORG" ? splitPlacePrefix(real) : {place:"",core:real.trim()};
   const chars=Array.from(core.replace(/\s+/g,""));
-  if(chars.length<2)return kind==="PER"?"[人*]":"[机*]";
+  if(chars.length<2)return kind==="PER"?"「人*」":"「机*」";
   // Only full, relatively long organization names retain the leading city.
   const city=kind==="ORG" && place && chars.length>=6 ? place : "";
-  return "["+city+chars[0]+"*"+(chars.length===2?"":chars[chars.length-1])+"]";
+  return "「"+city+chars[0]+"*"+(chars.length===2?"":chars[chars.length-1])+"」";
 }
 /** Register one real value exactly once. Never rewrite a previously assigned mask.
  * On a collision, numeric IDs/credit codes reveal the final check character,
@@ -47,7 +47,7 @@ function addMapping(
   checkDigitMask?:string
 ):void {
   if(Object.prototype.hasOwnProperty.call(mapping.realToPlaceholder,real))return;
-  if(!initialMask.startsWith("[") || !initialMask.endsWith("]") || !initialMask.includes("*"))
+  if(!initialMask.startsWith("「") || !initialMask.endsWith("」") || !initialMask.includes("*"))
     throw new Error("A reversible mask must be bracketed and contain a star");
   let mask=initialMask;
   if(used.has(mask) && checkDigitMask)mask=checkDigitMask;
@@ -69,9 +69,9 @@ function addMaskedNumbers(
     if(Object.prototype.hasOwnProperty.call(mapping.realToPlaceholder,real))continue;
     const prefix=real.slice(0,prefixLength);
     const maskedCount=real.length-prefixLength;
-    const initialMask="["+prefix+"*".repeat(maskedCount)+"]";
+    const initialMask="「"+prefix+"*".repeat(maskedCount)+"」";
     const checkDigitMask=kind==="PHONE"?undefined
-      :"["+prefix+"*".repeat(maskedCount-1)+real.slice(-1).toUpperCase()+"]";
+      :"「"+prefix+"*".repeat(maskedCount-1)+real.slice(-1).toUpperCase()+"」";
     addMapping(real,initialMask,mapping,used,checkDigitMask);
   }
 }
@@ -91,11 +91,15 @@ export function makeMapping(
   // consults the global realToPlaceholder map and never changes an older mask.
   // This avoids depending on model output ordering or locale-specific sorting.
   const source=markdownDocuments.join("\n\n");
+  const positions=new Map<string,number>();
+  const position=(value:string)=>{
+    if(!positions.has(value))positions.set(value,source.indexOf(value));
+    const found=positions.get(value)!;return found<0?Infinity:found;
+  };
   const byAppearance=(values:string[]):string[]=> {
     if(!markdownDocuments.length)return values;
     return [...values].sort((a,b)=>{
-      const ia=source.indexOf(a),ib=source.indexOf(b);
-      return (ia<0?Infinity:ia)-(ib<0?Infinity:ib);
+      return position(a)-position(b);
     });
   };
   for(const kind of ["PER","ORG"] as const) {
@@ -121,11 +125,17 @@ export function makeMapping(
 
 /** One-pass longest-match replacement; dates and money spans remain untouched. */
 export function anonymizeText(text:string,mapping:EntityMapping):string {
+  return createTextAnonymizer(mapping)(text);
+}
+
+/** Compile the global longest-match pattern once per job, reuse across files. */
+export function createTextAnonymizer(mapping:EntityMapping):(text:string)=>string {
   const terms=Object.keys(mapping.realToPlaceholder).sort((a,b)=>b.length-a.length || a.localeCompare(b));
-  if(!terms.length)return text;
+  if(!terms.length)return text=>text;
   const escaped=terms.map(value=>value.replace(/[|\\{}()[\]^$+*?.]/g,"\\$&"));
   const pattern=new RegExp(escaped.join("|"),"g");
   const replace=(fragment:string)=>fragment.replace(pattern,found=>mapping.realToPlaceholder[found]);
+  return (text:string)=>{
   const protectedSpans=findProtectedNumericSpans(text);
   if(!protectedSpans.length)return replace(text);
   let result="",cursor=0;
@@ -135,6 +145,7 @@ export function anonymizeText(text:string,mapping:EntityMapping):string {
     cursor=span.end;
   }
   return result+replace(text.slice(cursor));
+  };
 }
 
 
