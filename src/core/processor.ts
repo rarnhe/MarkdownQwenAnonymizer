@@ -1,4 +1,7 @@
 import * as path from "node:path";
+import {sha256} from "./sha256";
+import {loadProgress,progressConfig,recoverable,splitRetry,mergeEntities,validEntities} from "./recovery";
+import type {ExtractedEntities} from "./types";
 import {randomUUID} from "node:crypto";
 import type {FilePort} from "../ports/file-port";
 import type {EntityExtractor,EntityMapping} from "./types";
@@ -140,14 +143,52 @@ export class MarkdownDirectoryAnonymizer {
       mode:(await this.fs.stat(filePath)).mode
     })));
     const store=new GlobalEntityStore();
+    const chunks=createDocumentChunks(contents.map(file=>file.content));
+    const progressPath=mapPath.replace(/\.json$/,".progress.json");
+    const identity=this.client.cacheIdentity?await this.client.cacheIdentity():"custom-extractor";
+    const fingerprint=sha256(JSON.stringify(contents.map(f=>[f.filePath,sha256(f.content)])));
+    let raw:string|null=null;
+    try{raw=await this.fs.readFile(progressPath,"utf8");}
+    catch(e){if((e as NodeJS.ErrnoException).code!=="ENOENT")throw e;}
+    const progress=loadProgress(raw,fingerprint,progressConfig(identity),chunks.length);
+    const persist=async()=>{
+      const temp=progressPath+"."+randomUUID()+".new";
+      try {
+        await this.fs.writeFile(temp,JSON.stringify(progress)+"\n",{flag:"wx",mode:0o600});
+        await this.fs.rename(temp,progressPath);
+        await this.fs.chmod(progressPath,0o600);
+      } finally {try{await this.fs.unlink(temp);}catch{}}
+    };
+    await persist();
     const controllable=await this.client.verifyCotBudgetControl();
+    const extract=async(text:string,depth=0):Promise<ExtractedEntities>=>{
+      const key=sha256(text);
+      if(progress.results[key])return progress.results[key];
+      let result:ExtractedEntities;
+      try {
+        result=await this.client.extractEntitiesFromChunk(text,controllable);
+        if(!validEntities(result))throw new Error("Invalid extracted field");
+      } catch(error) {
+        const parts=recoverable(error)?splitRetry(text,depth):null;
+        if(!parts)throw new Error("Extraction failed; progress retained; "+
+          (recoverable(error)?"retry limit reached":"non-retryable transport/model error")+
+          ((error as Error).message?.includes("finish_reason=length")?" (finish_reason=length)":""));
+        console.error(`retry split depth=${depth+1} characters=${text.length}`);
+        const results:ExtractedEntities[]=[];
+        for(const part of parts)results.push(await extract(part,depth+1));
+        result=mergeEntities(results);
+      }
+      progress.results[key]=result;
+      await persist();
+      return result;
+    };
     let chunkCount=0;
     for(const file of contents)store.applyRegexFallback(file.content);
-    const chunks=createDocumentChunks(contents.map(file=>file.content));
     for(const chunk of chunks) {
       const started=Date.now();
       console.error(`[${chunkCount+1}/${chunks.length}] extracting ${chunk.length} characters`);
-      store.addEntities(await this.client.extractEntitiesFromChunk(chunk,controllable));
+      try{store.addEntities(await extract(chunk));}
+      catch(e){throw new Error(`Chunk ${chunkCount+1}/${chunks.length}: `+(e as Error).message);}
       chunkCount++;
       console.error(`[${chunkCount}/${chunks.length}] completed in ${((Date.now()-started)/1000).toFixed(1)}s`);
     }
@@ -156,6 +197,9 @@ export class MarkdownDirectoryAnonymizer {
     for(const file of contents)
       for(const match of file.content.matchAll(/「[^」\r\n]{1,80}」/g))reserved.add(match[0]);
     const mapping:EntityMapping=makeMapping(categories,reserved,contents.map(file=>file.content));
+    for(const file of contents)
+      if(await this.fs.readFile(file.filePath,"utf8")!==file.content)
+        throw new Error("Source changed during extraction; progress retained");
     const staged=this.makeStages(contents,"apply");
     const prepared=contents.map(file=>anonymizeText(file.content,mapping));
     const installed:StagedFile[]=[];
@@ -185,6 +229,7 @@ export class MarkdownDirectoryAnonymizer {
     const cleanup=await Promise.allSettled(staged.map(item=>this.fs.unlink(item.backup)));
     if(cleanup.some(result=>result.status==="rejected"))
       throw new Error("Anonymization succeeded but some plaintext backups could not be deleted");
+    await this.fs.unlink(progressPath);
     return {action:"anonymized",outputDir:this.inputPath,mapPath,fileCount:files.length,chunkCount,
       counts:{PER:categories.PER.length,ORG:categories.ORG.length,
         NUM:(categories.ID?.length??0)+(categories.PHONE?.length??0)+(categories.USCC?.length??0)}};

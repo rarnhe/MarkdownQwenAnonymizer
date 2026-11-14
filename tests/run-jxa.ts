@@ -92,6 +92,23 @@ async function main():Promise<void>{
     assert.throws(()=>execute(truncatedFile),/finish_reason=length/);
     assert.equal(await fs.readFile(truncatedFile,"utf8"),truncatedText);
     assert.ok(!await exists(path.join(root,"truncated.json")));
+    const large=path.join(root,"large");await fs.mkdir(large);
+    const largeText="姓名：李明；FAIL_RESUME；"+"正文".repeat(20);
+    for(let i=0;i<416;i++)await fs.writeFile(path.join(large,`${i}.md`),largeText+i);
+    assert.throws(()=>execute(large),/progress retained/);
+    assert.equal(await fs.readFile(path.join(large,"0.md"),"utf8"),largeText+0);
+    assert.ok(!await exists(large+".json"));
+    const progress=JSON.parse(await fs.readFile(large+".progress.json","utf8"));
+    assert.equal(Object.keys(progress.results).length,1);
+    assert.equal((await fs.stat(large+".progress.json")).mode&0o777,0o600);
+    const resumed=execute(large);
+    assert.equal(resumed.action,"anonymized");
+    assert.equal(resumed.fileCount,416);
+    const stats=await (await fetch("http://127.0.0.1:9931/stats")).json() as {resumeCalls:number};
+    assert.equal(stats.resumeCalls,resumed.chunkCount+1,"completed chunk reused after interruption");
+    assert.ok(!await exists(large+".progress.json"));
+    assert.equal(execute(large).action,"restored");
+    for(let i=0;i<416;i++)assert.equal(await fs.readFile(path.join(large,`${i}.md`),"utf8"),largeText+i);
     console.log("PASS JXA: executable osascript file + directory, Foundation NSTask/curl HTTP, sibling map and exact restoration");
   }finally {
     server.kill("SIGTERM");

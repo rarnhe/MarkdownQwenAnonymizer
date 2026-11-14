@@ -9,6 +9,7 @@ export interface EntityMapping {
   realToPlaceholder: Record<string,string>;
 }
 export interface EntityExtractor {
+  cacheIdentity?():Promise<string>;
   verifyCotBudgetControl(): Promise<boolean>;
   extractEntitiesFromChunk(text: string, cotControllable: boolean): Promise<ExtractedEntities>;
 }

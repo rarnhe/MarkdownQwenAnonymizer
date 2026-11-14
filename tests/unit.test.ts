@@ -353,7 +353,7 @@ test("failed extraction leaves source and map untouched",async()=>{
       async verifyCotBudgetControl(){return false;},
       async extractEntitiesFromChunk(){throw new Error("bad JSON");}
     };
-    await assert.rejects(()=>new MarkdownDirectoryAnonymizer(source,broken,createNodeFilePort()).process(),/bad JSON/);
+    await assert.rejects(()=>new MarkdownDirectoryAnonymizer(source,broken,createNodeFilePort()).process(),/Extraction failed/);
     assert.equal(await fs.readFile(path.join(source,"case.md"),"utf8"),text);
     assert.ok(!await exists(path.join(tmp,"cases.json")));
     assert.deepEqual(await fs.readdir(source),["case.md"]);

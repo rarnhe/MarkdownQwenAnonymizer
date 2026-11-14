@@ -32,29 +32,7 @@ export class CocoaLlamaClient {
       messages:[{role:"user",content:prompt}],max_tokens:2048,temperature:0,
       grammar:ENTITY_GBNF_GRAMMAR,stream:false
     });
-    const task=$.NSTask.alloc.init;
-    const stdin=$.NSPipe.pipe,stdout=$.NSPipe.pipe,stderr=$.NSPipe.pipe;
-    task.launchPath="/usr/bin/curl";
-    task.arguments=[
-      "--silent","--show-error","--fail","--max-time",this.timeoutSeconds(),
-      "--request","POST","--header","Content-Type: application/json",
-      "--data-binary","@-",this.url+"/v1/chat/completions"
-    ];
-    task.standardInput=stdin;
-    task.standardOutput=stdout;
-    task.standardError=stderr;
-    task.launch;
-    const writer=stdin.fileHandleForWriting;
-    writer.writeData(ns(body).dataUsingEncoding($.NSUTF8StringEncoding));
-    writer.closeFile;
-    // Response is bounded by max_tokens=2048; reject truncated completions.
-    const resultData=stdout.fileHandleForReading.readDataToEndOfFile;
-    const errorData=stderr.fileHandleForReading.readDataToEndOfFile;
-    task.waitUntilExit;
-    const result=unwrap($.NSString.alloc.initWithDataEncoding(resultData,$.NSUTF8StringEncoding));
-    const errorText=unwrap($.NSString.alloc.initWithDataEncoding(errorData,$.NSUTF8StringEncoding));
-    if(Number(task.terminationStatus)!==0)
-      throw new Error("llama-server curl failed: "+errorText.slice(0,300));
+    const result=this.request("/v1/chat/completions",body);
     const decoded=JSON.parse(result);
     const choice=decoded.choices?.[0];
     if(choice?.finish_reason==="length")
@@ -68,4 +46,42 @@ export class CocoaLlamaClient {
     }
     return found as ExtractedEntities;
   }
+  cacheIdentity():string {
+    ObjC.import("Foundation");
+    const models=JSON.parse(this.request("/v1/models"));
+    if(!models.data?.[0]?.id)throw new Error("Cannot identify llama-server model");
+    const revision=ObjC.unwrap($.NSProcessInfo.processInfo.environment.objectForKey("ANONYMIZER_MODEL_REVISION"));
+    return this.url+":"+models.data[0].id+":"+(revision||"");
+  }
+  private request(endpoint:string,body?:string):string {
+    ObjC.import("Foundation");
+    const task=$.NSTask.alloc.init;
+    const stdin=$.NSPipe.pipe,stdout=$.NSPipe.pipe,stderr=$.NSPipe.pipe;
+    task.launchPath="/usr/bin/curl";
+    task.arguments=[
+      "--silent","--show-error","--write-out","\n%{http_code}","--max-time",this.timeoutSeconds(),
+      "--request",body===undefined?"GET":"POST","--header","Content-Type: application/json",
+      "--data-binary","@-",this.url+endpoint
+    ];
+    task.standardInput=stdin;
+    task.standardOutput=stdout;
+    task.standardError=stderr;
+    task.launch;
+    const writer=stdin.fileHandleForWriting;
+    writer.writeData(ns(body||"").dataUsingEncoding($.NSUTF8StringEncoding));
+    writer.closeFile;
+    // Response is bounded by max_tokens=2048; reject truncated completions.
+    const resultData=stdout.fileHandleForReading.readDataToEndOfFile;
+    const errorData=stderr.fileHandleForReading.readDataToEndOfFile;
+    task.waitUntilExit;
+    const result=unwrap($.NSString.alloc.initWithDataEncoding(resultData,$.NSUTF8StringEncoding));
+    const errorText=unwrap($.NSString.alloc.initWithDataEncoding(errorData,$.NSUTF8StringEncoding));
+    if(Number(task.terminationStatus)!==0)
+      throw new Error("llama-server curl failed ("+Number(task.terminationStatus)+")");
+    const split=result.lastIndexOf("\n");
+    const status=Number(result.slice(split+1));
+    if(status<200||status>=300)throw new Error("llama-server HTTP "+status);
+    return result.slice(0,split);
+  }
+
 }

@@ -23,6 +23,14 @@ export class LlamaServerClient implements EntityExtractor {
       throw new Error("Invalid ANONYMIZER_TIMEOUT_MS");
   }
 
+  async cacheIdentity():Promise<string> {
+    const response=await fetch(this.baseUrl+"/v1/models",{signal:AbortSignal.timeout(this.timeoutMs)});
+    if(!response.ok)throw new Error("Cannot identify llama-server model: HTTP "+response.status);
+    const data=await response.json() as {data?:Array<{id?:string}>};
+    if(!data.data?.[0]?.id)throw new Error("Cannot identify llama-server model");
+    return this.baseUrl+":"+data.data[0].id+":"+(process.env.ANONYMIZER_MODEL_REVISION||"");
+  }
+
   async verifyCotBudgetControl():Promise<boolean> {
     const payload={
       messages:[{role:"user",content:"1+1="}],max_tokens:24,temperature:0,

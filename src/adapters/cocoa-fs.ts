@@ -69,12 +69,10 @@ export function createCocoaFilePort():CocoaFilePort {
         throw new Error("Cannot chmod: "+path);
     },
     rename(from,to) {
-      // Foundation moveItem does not replace an existing destination. A private
-      // backup is maintained by the core so an interrupted replacement can roll back.
-      if(stat(to) && !manager.removeItemAtPathError(ns(to),null))
-        throw new Error("Cannot replace existing file: "+to);
-      if(!manager.moveItemAtPathToPathError(ns(from),ns(to),null))
-        throw new Error("Cannot rename "+from+" to "+to);
+      // POSIX rename atomically replaces an existing sibling. A checkpoint
+      // therefore survives process interruption as either old or new JSON.
+      ObjC.bindFunction("rename",["int",["char *","char *"]]);
+      if(Number($.rename(from,to))!==0)throw new Error("Cannot rename "+from+" to "+to);
     },
     unlink(path) {
       if(stat(path) && !manager.removeItemAtPathError(ns(path),null))

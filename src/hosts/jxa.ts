@@ -1,5 +1,8 @@
 import {createCocoaFilePort,normalizeCocoaPath,cocoaParent,cocoaName,cocoaJoin} from "../adapters/cocoa-fs";
 import {CocoaLlamaClient} from "../adapters/cocoa-llama";
+import {sha256} from "../core/sha256";
+import {loadProgress,progressConfig,recoverable,splitRetry,mergeEntities,validEntities} from "../core/recovery";
+import type {ExtractedEntities} from "../core/types";
 import {GlobalEntityStore} from "../core/store";
 import {createDocumentChunks} from "../core/chunks";
 import {makeMapping,anonymizeText,restoreText} from "../core/mapping";
@@ -108,12 +111,40 @@ export function run(argv:string[]=[]):string {
   const store=new GlobalEntityStore();
   for(const doc of docs)store.applyRegexFallback(doc.original);
   const client=new CocoaLlamaClient();
-  let chunkCount=0;
   const chunks=createDocumentChunks(docs.map(d=>d.original));
+  const progressPath=mapPath.replace(/\.json$/,".progress.json");
+  const fingerprint=sha256(JSON.stringify(docs.map(d=>[d.file,sha256(d.original)])));
+  const progress=loadProgress(fs.stat(progressPath)?fs.readFile(progressPath):null,
+    fingerprint,progressConfig(client.cacheIdentity()),chunks.length);
+  const persist=()=>{
+    const temp=progressPath+"."+Date.now()+".new";
+    try{fs.writeFile(temp,JSON.stringify(progress)+"\n",0o600,true);fs.rename(temp,progressPath);}
+    finally{fs.unlink(temp);}
+  };
+  persist();
+  const extract=(text:string,depth=0):ExtractedEntities=>{
+    const key=sha256(text);
+    if(progress.results[key])return progress.results[key];
+    let result:ExtractedEntities;
+    try {
+      result=client.extractEntitiesFromChunk(text);
+      if(!validEntities(result))throw new Error("Invalid extracted field");
+    } catch(error) {
+      const parts=recoverable(error)?splitRetry(text,depth):null;
+      if(!parts)throw new Error("Extraction failed; progress retained; "+
+        (recoverable(error)?"retry limit reached":"non-retryable transport/model error")+
+        ((error as Error).message?.includes("finish_reason=length")?" (finish_reason=length)":""));
+      console.log(`retry split depth=${depth+1} characters=${text.length}`);
+      result=mergeEntities(parts.map(part=>extract(part,depth+1)));
+    }
+    progress.results[key]=result;persist();return result;
+  };
+  let chunkCount=0;
   for(const chunk of chunks) {
     const started=Date.now();
     console.log(`[${chunkCount+1}/${chunks.length}] extracting ${chunk.length} characters`);
-    store.addEntities(client.extractEntitiesFromChunk(chunk));
+    try{store.addEntities(extract(chunk));}
+    catch(e){throw new Error(`Chunk ${chunkCount+1}/${chunks.length}: `+(e as Error).message);}
     chunkCount++;
     console.log(`[${chunkCount}/${chunks.length}] completed in ${((Date.now()-started)/1000).toFixed(1)}s`);
   }
@@ -122,7 +153,10 @@ export function run(argv:string[]=[]):string {
   for(const doc of docs)
     for(const match of doc.original.matchAll(/「[^」\r\n]{1,80}」/g))reserved.add(match[0]);
   const mapping=makeMapping(categories,reserved,docs.map(d=>d.original));
+  for(const doc of docs)if(fs.readFile(doc.file)!==doc.original)
+    throw new Error("Source changed during extraction; progress retained");
   transaction(docs,docs.map(d=>anonymizeText(d.original,mapping)),mapPath,false,fs,mapping);
+  fs.unlink(progressPath);
   return JSON.stringify({
     action:"anonymized",outputDir:input,mapPath,fileCount:docs.length,chunkCount,
     counts:{PER:categories.PER.length,ORG:categories.ORG.length,
