@@ -7,6 +7,8 @@ const stages=[
   ["npm ci","STAGE_NPM","npm-ci.log"],
   ["TypeScript typecheck","STAGE_TYPECHECK","typecheck.log"],
   ["Anonymizer unit tests","STAGE_UNIT","unit.log"],
+  ["Standalone JXA builds","STAGE_BUILD","build.log"],
+  ["macOS JXA file/folder tests","STAGE_JXA","jxa.log"],
   ["Qwen GGUF download","STAGE_MODEL","download.log"],
   ["Real llama-server startup","STAGE_SERVER","server-ready.log"],
   ["Real Qwen GGUF integration","STAGE_LIVE","live.log"]
@@ -37,7 +39,7 @@ for(const [name,,log] of failed) {
 }
 lines.push("","## 模型与隐私说明","",
   "- 实际 GGUF 在 CI 时下载到 tests/，不提交为普通 Git 对象。",
-  "- 不上传 GGUF 权重或含真实值的 .anonymize-map.json。",
+  "- 不上传 GGUF 权重或含真实值的 sibling JSON mapping。",
   "- 真实资料发布前仍必须人工核对遗漏实体。","");
 fs.writeFileSync(path.join(root,"test_report.md"),lines.join("\n"),"utf8");
 if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\n"),"utf8");

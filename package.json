@@ -7,11 +7,14 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test tests/*.test.ts",
     "test:live": "tsx tests/run-live.ts",
-    "test": "npm run typecheck && npm run test:unit"
+    "test": "npm run typecheck && npm run test:unit",
+    "build": "node build.js",
+    "test:jxa": "tsx tests/run-jxa.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.5",
     "tsx": "4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "esbuild": "0.28.2"
   }
 }
